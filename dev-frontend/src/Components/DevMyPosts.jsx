@@ -96,11 +96,10 @@ function PostRow({ post, onEdit, onDelete, onContinueWriting }) {
       <div>
         <div className="flex items-center gap-2.5 mb-2.5 flex-wrap">
           <span
-            className={`font-mono text-[0.7rem] px-2.5 py-[3px] rounded font-medium ${
-              isDraft
+            className={`font-mono text-[0.7rem] px-2.5 py-[3px] rounded font-medium ${isDraft
                 ? "text-[#e8a87c] bg-[#e8a87c1a]"
                 : "text-[#8fd19e] bg-[#8fd19e1a]"
-            }`}
+              }`}
           >
             {post.status}
           </span>
@@ -163,7 +162,7 @@ function PostRow({ post, onEdit, onDelete, onContinueWriting }) {
 }
 
 export default function DevMyPosts({
-  username = "you",
+  userName = "you",
   posts = SAMPLE_POSTS,
   onEdit,
   onDelete,
@@ -225,11 +224,10 @@ export default function DevMyPosts({
             <button
               key={f.key}
               onClick={() => setFilter(f.key)}
-              className={`font-mono text-[0.8rem] py-2 mr-[22px] border-b-2 transition-colors ${
-                filter === f.key
+              className={`font-mono text-[0.8rem] py-2 mr-[22px] border-b-2 transition-colors ${filter === f.key
                   ? "text-[#e8e9ee] border-[#8fd19e]"
                   : "text-[#5a5c6b] border-transparent hover:text-[#8b8d9b]"
-              }`}
+                }`}
             >
               {f.label}{" "}
               <span className="text-[0.74rem] text-[#5a5c6b]">

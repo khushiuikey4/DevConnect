@@ -9,7 +9,7 @@ import DevSidebar from "../Components/DevSidebar";
  * Usage:
  *   import DevFeed from "./DevFeed";
  *   <DevFeed
- *     username="you"
+ *     userName="you"
  *     posts={posts}
  *     tags={["react", "nodejs", "mongodb", "typescript"]}
  *     onSearch={(query) => ...}
@@ -149,7 +149,7 @@ function PostCard({ post, onLike, onSave, onClick }) {
 }
 
 export default function DevFeed({
-  username = "you",
+  userName = "you",
   posts = SAMPLE_POSTS,
   tags = ["react", "nodejs", "mongodb", "typescript"],
   activeSort = "following",
@@ -176,7 +176,7 @@ export default function DevFeed({
       {/* main feed column */}
       <div>
         <div className="font-mono text-[0.82rem] text-[#5a5c6b] mb-1.5">
-          // <span className="text-[#8fd19e]">welcome back</span>, @{username}{" "}
+          // <span className="text-[#8fd19e]">welcome back</span>, @{userName}{" "}
           — here's what's new
         </div>
         <h1 className="text-[1.7rem] font-semibold mb-7 tracking-[-0.01em] text-[#e8e9ee]">

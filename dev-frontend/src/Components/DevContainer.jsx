@@ -9,7 +9,7 @@
  *   import DevContainer from "./DevContainer";
  *   import DevFeed from "./DevFeed";
  *
- *   <DevContainer activeTab="feed" user={{ username: "you" }}>
+ *   <DevContainer activeTab="feed" user={{ userName: "you" }}>
  *     <DevFeed />
  *   </DevContainer>
  *

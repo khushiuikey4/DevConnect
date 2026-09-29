@@ -12,13 +12,18 @@ import DevSaved from "./Components/DevSaved";
 import DevExplore from "./Components/DevExplore";
 import { useState } from "react";
 import LandingPage from "./Components/LandingPage";
+import { Routes, Route } from "react-router-dom"
 
 function App() {
   let [tab, setTab] = useState("feed");
 
   return (<>
-    {/* <AuthPage onLogin={true} onSignup={false}></AuthPage> */}
-    <LandingPage></LandingPage>
+    <Routes>
+      <Route path="/" element={<LandingPage></LandingPage>} />
+      <Route path="/authentication" element={<AuthPage onLogin={true} onSignup={false}></AuthPage>} />
+    </Routes>
+
+
     {/* <DevHeader activeTab={tab} setTab={setTab}></DevHeader>
     {tab == "feed" && < DevContainer></DevContainer>}
     {tab == "my-posts" && <DevMyPosts></DevMyPosts>}

@@ -1,6 +1,8 @@
 const express = require('express');
 const app = express();
-
+const { authRouter } = require('./routes/authRouter')
+const session = require('express-session');
+const cors = require('cors');
 const mongoose = require('mongoose');
 const DB_PATH = "mongodb+srv://khuxxhi444_db_user:9vdTTlH7xXeeh93z@ferrox.ocin5yt.mongodb.net/devConnect?appName=ferrox";
 
@@ -14,6 +16,14 @@ mongoose.connect(DB_PATH).then(() => {
 }).catch(() => {
     console.log("MongoDB : Failed to Connect.")
 })
-
+app.use(cors());
 app.use(express.json());
+app.use(
+    session({
+        secret: "ferrox",
+        resave: false,
+        saveUninitialized: false
+    })
+)
 app.use(express.urlencoded({ extended: true }));
+app.use('/authentication', authRouter);

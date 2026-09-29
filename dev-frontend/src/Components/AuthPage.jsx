@@ -1,5 +1,7 @@
 import { useState } from "react";
-
+import { Link } from "react-router-dom";
+import { signupToServer, loginToServer } from "../services/auth"
+import { useNavigate } from "react-router-dom";
 /**
  * DevConnect — Auth Page (Sign in / Sign up)
  * Matches the code-editor visual theme used across the app.
@@ -20,7 +22,9 @@ function Field({ label, type = "text", value, onChange, placeholder }) {
         {label}
         <span className="text-[#5a5c6b]"> =</span>
       </label>
+
       <input
+        name={label}
         type={type}
         value={value}
         onChange={onChange}
@@ -35,9 +39,10 @@ function Field({ label, type = "text", value, onChange, placeholder }) {
 
 export default function AuthPage({ onLogin, onSignup }) {
   const [mode, setMode] = useState("login"); // "login" | "signup"
-  const [form, setForm] = useState({ username: "", email: "", password: "" });
+  const [form, setForm] = useState({ userName: "", email: "", password: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
   const update = (field) => (e) =>
     setForm((prev) => ({ ...prev, [field]: e.target.value }));
@@ -46,26 +51,42 @@ export default function AuthPage({ onLogin, onSignup }) {
     e.preventDefault();
     setError("");
 
-    if (!form.email || !form.password || (mode === "signup" && !form.username)) {
+    if (!form.email || !form.password || (mode === "signup" && !form.userName)) {
       setError("Please fill in all fields.");
       return;
     }
 
-    setLoading(true);
-    try {
-      if (mode === "login") {
-        await onLogin?.({ email: form.email, password: form.password });
-      } else {
-        await onSignup?.({
-          username: form.username,
-          email: form.email,
-          password: form.password,
-        });
+    // setLoading(true);
+    // try {
+    //   if (mode === "login") {
+    //     await onLogin?.({ email: form.email, password: form.password });
+    //   } else {
+    //     await onSignup?.({
+    //       userName: form.userName,
+    //       email: form.email,
+    //       password: form.password,
+    //     });
+    //   }
+    // } catch (err) {
+    //   setError(err?.message || "Something went wrong. Try again.");
+    // } finally {
+    //   setLoading(false);
+    // }
+
+    if (mode == 'login') {
+      const res = await loginToServer({ email: form.email, password: form.password });
+      if (res === true) {
+        navigate('/');
       }
-    } catch (err) {
-      setError(err?.message || "Something went wrong. Try again.");
-    } finally {
-      setLoading(false);
+    } else if (mode == 'signup') {
+      const formData = new FormData(e.target);
+      const userName = formData.get("userName");
+      const email = formData.get('email');
+      const password = formData.get('password');
+      const res = await signupToServer({ userName, email, password });
+      setMode(res);
+      setForm({ userName: "", email: form.email, password: "" });
+
     }
   };
 
@@ -82,9 +103,6 @@ export default function AuthPage({ onLogin, onSignup }) {
           <span className="ml-3 font-mono text-[0.78rem] cursor-pointer text-[#5a5c6b]">
             ~/devconnect/auth.js
           </span>
-          <a href="/" className="cursor-pointer ml-auto font-mono text-[0.78rem] text-[#8b8d9b] hover:text-[#e8e9ee]">
-            ← back to devconnect
-          </a>
         </div>
       </div>
 
@@ -92,23 +110,31 @@ export default function AuthPage({ onLogin, onSignup }) {
         <div className="w-full max-w-[880px] grid grid-cols-1 md:grid-cols-2 border border-[#383a46] rounded-xl overflow-hidden">
           {/* form side */}
           <div className="bg-[#23252e] p-8 sm:p-11">
+            <Link
+              to="/"
+              className="inline-block mb-6 font-mono text-[0.78rem] text-[#8b8d9b] hover:text-[#e8e9ee]"
+            >
+              ← back to devconnect
+            </Link>
+
             <div className="flex border border-[#383a46] rounded-md overflow-hidden mb-8">
               <button
                 type="button"
                 onClick={() => setMode("login")}
                 className={`flex-1 text-center py-2 font-mono text-[0.8rem] transition-colors ${mode === "login"
-                    ? "bg-[#8fd19e] text-[#182019] font-semibold"
-                    : "bg-[#2a2c37] text-[#5a5c6b]"
+                  ? "bg-[#8fd19e] text-[#182019] font-semibold"
+                  : "bg-[#2a2c37] text-[#5a5c6b]"
                   }`}
               >
                 login.js
               </button>
+
               <button
                 type="button"
                 onClick={() => setMode("signup")}
                 className={`flex-1 text-center py-2 font-mono text-[0.8rem] transition-colors ${mode === "signup"
-                    ? "bg-[#8fd19e] text-[#182019] font-semibold"
-                    : "bg-[#2a2c37] text-[#5a5c6b]"
+                  ? "bg-[#8fd19e] text-[#182019] font-semibold"
+                  : "bg-[#2a2c37] text-[#5a5c6b]"
                   }`}
               >
                 signup.js
@@ -127,14 +153,16 @@ export default function AuthPage({ onLogin, onSignup }) {
             <form onSubmit={handleSubmit}>
               {mode === "signup" && (
                 <Field
-                  label="username"
-                  value={form.username}
-                  onChange={update("username")}
+                  label="userName"
+                  name="userName"
+                  value={form.userName}
+                  onChange={update("userName")}
                   placeholder="dev_jane"
                 />
               )}
               <Field
                 label="email"
+                name="email"
                 type="email"
                 value={form.email}
                 onChange={update("email")}
@@ -142,6 +170,7 @@ export default function AuthPage({ onLogin, onSignup }) {
               />
               <Field
                 label="password"
+                name="password"
                 type="password"
                 value={form.password}
                 onChange={update("password")}
@@ -214,9 +243,9 @@ export default function AuthPage({ onLogin, onSignup }) {
               <br />
               {mode === "signup" && (
                 <>
-                  &nbsp;&nbsp;username:{" "}
+                  &nbsp;&nbsp;userName:{" "}
                   <span className="text-[#8fd19e]">
-                    "{form.username || "..."}"
+                    "{form.userName || "..."}"
                   </span>
                   ,<br />
                 </>

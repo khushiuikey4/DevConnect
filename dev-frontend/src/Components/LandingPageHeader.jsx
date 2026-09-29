@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 
 /**
  * DevConnect — Landing Page Header
@@ -56,12 +57,12 @@ export default function LandingPageHeader({ onSignIn, onStartWriting }) {
         </div>
 
         <div className="hidden md:flex items-center gap-2.5 ml-auto py-3">
-          <button
+          <Link to='/authentication'
             onClick={onSignIn}
             className="px-4 py-2 font-mono text-[0.8rem] rounded border border-[#383a46] text-[#8b8d9b] hover:text-[#e8e9ee] hover:border-[#8b8d9b] transition-colors"
           >
             sign in / sign up
-          </button>
+          </Link>
           <a
             href="#write"
             onClick={() => {
@@ -94,12 +95,12 @@ export default function LandingPageHeader({ onSignIn, onStartWriting }) {
               how-it-works.js
             </a>
             <div className="flex gap-2.5 p-4">
-              <button
+              <Link to="/authentication"
                 onClick={onSignIn}
                 className="flex-1 px-4 py-2 font-mono text-[0.8rem] rounded border border-[#383a46] text-[#8b8d9b]"
               >
                 sign in / sign up
-              </button>
+              </Link>
               <button
                 onClick={onStartWriting}
                 className="flex-1 px-4 py-2 font-mono text-[0.8rem] rounded bg-[#8fd19e] text-[#182019] font-semibold"

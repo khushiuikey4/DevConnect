@@ -7,6 +7,9 @@
  *   <LandingFooter onStartWriting={...} />
  */
 
+import LandingWork from "./LandingWork";
+import { Link } from "react-router-dom";
+
 export default function LandingFooter({ onStartWriting }) {
   return (
     <>
@@ -18,12 +21,12 @@ export default function LandingFooter({ onStartWriting }) {
           <h2 className="text-[1.6rem] sm:text-[2.1rem] font-medium tracking-[-0.01em] max-w-[560px] mx-auto mb-7">
             Your next project deserves more than a tweet.
           </h2>
-          <button
+          <Link to="/authentication"
             onClick={onStartWriting}
             className="px-6 py-3 rounded-md font-mono text-[0.85rem] font-semibold bg-[#8fd19e] text-[#182019] hover:opacity-90 transition-opacity"
           >
             start writing — it's free
-          </button>
+          </Link>
         </div>
       </section>
 

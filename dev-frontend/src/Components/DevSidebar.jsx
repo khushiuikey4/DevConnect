@@ -23,12 +23,12 @@ const SAMPLE_TRENDING = [
 
 const SAMPLE_SUGGESTIONS = [
   {
-    username: "arjun_ships",
+    userName: "arjun_ships",
     tagline: "next.js · postgres",
     gradient: "from-[#b39ddb] to-[#7eb6e0]",
   },
   {
-    username: "codewithzee",
+    userName: "codewithzee",
     tagline: "docker · devops",
     gradient: "from-[#e8a87c] to-[#8fd19e]",
   },
@@ -58,9 +58,8 @@ export default function DevSidebar({
         {stats.map((stat, i) => (
           <div
             key={stat.label}
-            className={`flex justify-between text-[0.85rem] py-2 ${
-              i !== stats.length - 1 ? "border-b border-[#383a46]" : ""
-            }`}
+            className={`flex justify-between text-[0.85rem] py-2 ${i !== stats.length - 1 ? "border-b border-[#383a46]" : ""
+              }`}
           >
             <span className="text-[#e8e9ee]">{stat.label}</span>
             <span className="font-mono text-[#8fd19e]">{stat.value}</span>
@@ -85,20 +84,20 @@ export default function DevSidebar({
 
       <Panel label="who to follow">
         {suggestions.map((person) => (
-          <div key={person.username} className="flex items-center gap-2.5 py-2">
+          <div key={person.userName} className="flex items-center gap-2.5 py-2">
             <span
               className={`w-[30px] h-[30px] rounded-full bg-gradient-to-br ${person.gradient} flex-shrink-0`}
             />
             <div className="flex-1 min-w-0">
               <div className="text-[0.85rem] font-medium truncate">
-                {person.username}
+                {person.userName}
               </div>
               <div className="font-mono text-[0.74rem] text-[#5a5c6b] truncate">
                 {person.tagline}
               </div>
             </div>
             <button
-              onClick={() => onFollow?.(person.username)}
+              onClick={() => onFollow?.(person.userName)}
               className="font-mono text-[0.72rem] px-2.5 py-1 border border-[#383a46] rounded text-[#8b8d9b] hover:text-[#e8e9ee] hover:border-[#8b8d9b] transition-colors flex-shrink-0"
             >
               follow
