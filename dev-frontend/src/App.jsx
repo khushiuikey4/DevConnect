@@ -19,16 +19,16 @@ function App() {
 
   return (<>
     <Routes>
-      <Route path="/" element={<LandingPage></LandingPage>} />
+      <Route path="/landingPage" element={<LandingPage></LandingPage>} />
       <Route path="/authentication" element={<AuthPage onLogin={true} onSignup={false}></AuthPage>} />
     </Routes>
 
 
-    {/* <DevHeader activeTab={tab} setTab={setTab}></DevHeader>
+    <DevHeader activeTab={tab} setTab={setTab}></DevHeader>
     {tab == "feed" && < DevContainer></DevContainer>}
     {tab == "my-posts" && <DevMyPosts></DevMyPosts>}
     {tab == "saved" && <DevSaved></DevSaved>}
-    {tab == "explore" && <DevExplore></DevExplore>} */}
+    {tab == "explore" && <DevExplore></DevExplore>}
   </>
   )
 }

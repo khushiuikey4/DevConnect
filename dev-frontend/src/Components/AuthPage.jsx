@@ -76,7 +76,7 @@ export default function AuthPage({ onLogin, onSignup }) {
     if (mode == 'login') {
       const res = await loginToServer({ email: form.email, password: form.password });
       if (res === true) {
-        navigate('/');
+        navigate('/landingPage');
       }
     } else if (mode == 'signup') {
       const formData = new FormData(e.target);

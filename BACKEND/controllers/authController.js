@@ -28,7 +28,7 @@ exports.postSignIn = async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
         return res.status(400).json({
-            message: "Sign up failed due to invalid information.",
+            message: "Sign in failed due to invalid information.",
             errors: errors.array()
         });
     }

@@ -38,4 +38,5 @@ body("password")
     .withMessage("Password must contain at least one number")
     .matches(/[!@#$%^&*(),.?":{}|<>_\-\\[\]/]/)
     .withMessage("Password must contain at least one special character"), postSignIn]);
+
 exports.authRouter = authRouter;
