@@ -13,6 +13,7 @@ import DevExplore from "./Components/DevExplore";
 import { useState } from "react";
 import LandingPage from "./Components/LandingPage";
 import { Routes, Route } from "react-router-dom"
+import NewPost from "./Components/newPost/NewPost";
 
 function App() {
   let [tab, setTab] = useState("feed");
@@ -29,6 +30,7 @@ function App() {
     {tab == "my-posts" && <DevMyPosts></DevMyPosts>}
     {tab == "saved" && <DevSaved></DevSaved>}
     {tab == "explore" && <DevExplore></DevExplore>}
+    {/* <NewPost></NewPost> */}
   </>
   )
 }

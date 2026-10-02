@@ -17,7 +17,6 @@ exports.postSignUp = async (req, res) => {
     })
     await dev.save();
     req.session.isLoggedIn = false;
-    req.session.dev = dev;
     return res.status(200).json({
         message: "Sign up successful"
     })

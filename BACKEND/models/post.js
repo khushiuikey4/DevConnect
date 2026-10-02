@@ -35,10 +35,13 @@ const postSchema = new mongoose.Schema({
     savedBy: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: "Dev"
-    }]
+    }],
+    savedAs: {
+        type: String,
+        required: true
+    }
 }, {
     timestamps: true
 });
-
 const Post = mongoose.model("Post", postSchema);
 module.exports = Post;
