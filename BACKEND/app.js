@@ -2,6 +2,7 @@ const express = require('express');
 const app = express();
 const { authRouter } = require('./routes/authRouter')
 const { devRouter } = require('./routes/devRouter')
+const searchRouter = require('./routes/searchRouter')
 const session = require('express-session');
 const cors = require('cors');
 const mongoose = require('mongoose');
@@ -30,3 +31,4 @@ app.use(
 app.use(express.urlencoded({ extended: true }));
 app.use('/authentication', authRouter);
 app.use('/dev', devRouter);
+app.use('/search', searchRouter);

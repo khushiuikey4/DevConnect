@@ -36,12 +36,18 @@ const postSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: "Dev"
     }],
-    savedAs: {
+    status: {
         type: String,
-        required: true
+        enum: ["draft", "published"],
+        default: "draft"
     }
 }, {
     timestamps: true
 });
+// // models/Post.js
+// postSchema.index(
+//     { title: "text", excerpt: "text", tags: "text", content: "text" },
+//     { weights: { title: 5, tags: 4, excerpt: 3, content: 1 } }
+// );
 const Post = mongoose.model("Post", postSchema);
 module.exports = Post;
