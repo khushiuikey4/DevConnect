@@ -10,7 +10,8 @@ export const addPostToServer = async (postInfo) => {
         });
 
         if (!response.ok) throw new Error("Failed to create post");
-        return await response.json();
+        const data = await response.json();
+        return { ...data, success: response.ok };
     } catch (error) {
         console.error(error.message);
     }
