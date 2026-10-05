@@ -2,6 +2,8 @@ export const signupToServer = async (devInfo) => {
     const response = await fetch('http://localhost:3000/authentication/sign-up',
         {
             method: "POST",
+            credentials: "include",
+
             headers: {
                 "Content-Type": "application/json"
             },
@@ -23,6 +25,7 @@ export const signupToServer = async (devInfo) => {
 export const loginToServer = async (devInfo) => {
     const response = await fetch('http://localhost:3000/authentication/sign-in', {
         method: "POST",
+        credentials: "include",
         headers: {
             "Content-Type": "application/json"
         },

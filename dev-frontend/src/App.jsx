@@ -1,36 +1,31 @@
-import AuthPage from "./Components/AuthPage";
-import LandingPageHeader from "./Components/landingPageHeader";
-import LandingHero from "./Components/LandingHero";
-import LandingExplore from "./Components/LandingExplore";
-import LandingWork from "./Components/LandingWork";
-import LandingFooter from "./Components/LandingFooter";
-import DevHeader from "./Components/DevHeader";
-import DevFeed from "./Components/DevFeed";
-import DevContainer from "./Components/DevContainer";
-import DevMyPosts from "./Components/DevMyPosts";
-import DevSaved from "./Components/DevSaved";
-import DevExplore from "./Components/DevExplore";
-import { useState } from "react";
-import LandingPage from "./Components/LandingPage";
+import LandingPage from "./Components/LandingPage/LandingPage";
+import AuthPage from "./Components/AuthenticationPage/AuthPage";
+import DevHomePage from "./Components/DevHome/DevHomePage";
+import { useState, useEffect } from "react";
 import { Routes, Route } from "react-router-dom"
 import NewPost from "./Components/newPost/NewPost";
+import { useSearchParams } from "react-router-dom";
+
 
 function App() {
-  let [tab, setTab] = useState("feed");
+  const [searchParams, setSearchParams] = useSearchParams();
+  let [tab, setTab] = useState(searchParams.get("tab") || "feed");
+  useEffect(() => {
+    const tabFromURL = searchParams.get("tab");
+
+    if (tabFromURL) {
+      setTab(tabFromURL);
+    }
+  }, [searchParams]);
 
   return (<>
     <Routes>
-      <Route path="/landingPage" element={<LandingPage></LandingPage>} />
-      <Route path="/authentication" element={<AuthPage onLogin={true} onSignup={false}></AuthPage>} />
+      <Route path="/" element={<LandingPage></LandingPage>} />
+      <Route path="/authenticationPage" element={<AuthPage onLogin={true} onSignup={false}></AuthPage>} />
+      <Route path="/devHomePage" element={<DevHomePage setSearchParams={setSearchParams} tab={tab} setTab={setTab} ></DevHomePage>} />
+      <Route path="/newPostPage" element={<NewPost tab={tab} setTab={setTab}></NewPost>} />
     </Routes>
 
-
-    <DevHeader activeTab={tab} setTab={setTab}></DevHeader>
-    {tab == "feed" && < DevContainer></DevContainer>}
-    {tab == "my-posts" && <DevMyPosts></DevMyPosts>}
-    {tab == "saved" && <DevSaved></DevSaved>}
-    {tab == "explore" && <DevExplore></DevExplore>}
-    {/* <NewPost></NewPost> */}
   </>
   )
 }

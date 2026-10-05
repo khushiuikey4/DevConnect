@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 
 /**
  * DevConnect — Dev Header (logged-in state)
@@ -34,6 +35,7 @@ export default function DevHeader({
   onNewPost,
   onOpenNotifications,
   onOpenProfile,
+  setSearchParams
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -59,6 +61,7 @@ export default function DevHeader({
               key={tab.key}
               onClick={() => {
                 onNavigate?.(tab.key)
+                setSearchParams("");
                 setTab(tab.key)
               }}
               className={`cursor-pointer flex items-center gap-2 py-3.5 px-4 font-mono text-[0.8rem] border-r border-[#383a46] transition-colors ${activeTab === tab.key
@@ -75,12 +78,14 @@ export default function DevHeader({
         </div>
 
         <div className="hidden md:flex items-center gap-3 ml-auto py-3">
-          <button
-            onClick={onNewPost}
-            className="px-4 py-2 font-mono text-[0.8rem] rounded border border-[#8fd19e] bg-[#8fd19e] text-[#182019] font-semibold hover:opacity-90 transition-opacity"
-          >
-            + new post
-          </button>
+          <Link to="/newPostPage">
+            <button
+              onClick={onNewPost}
+              className="px-4 py-2 font-mono text-[0.8rem] rounded border border-[#8fd19e] bg-[#8fd19e] text-[#182019] font-semibold hover:opacity-90 transition-opacity"
+            >
+              + new post
+            </button>
+          </Link>
 
           <button
             onClick={onOpenNotifications}

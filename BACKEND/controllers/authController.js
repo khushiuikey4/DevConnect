@@ -13,7 +13,7 @@ exports.postSignUp = async (req, res) => {
     const { userName, email, password } = req.body;
     const hashPassword = await bcrypt.hash(password, 12);
     const dev = new Dev({
-        userName, email, password: hashPassword
+        username: userName, email, password: hashPassword
     })
     await dev.save();
     req.session.isLoggedIn = false;
@@ -33,7 +33,7 @@ exports.postSignIn = async (req, res) => {
     }
     const { email, password } = req.body;
     //check if the email and password exists or not 
-    const dev = await Dev.findOne({ email: email });
+    const dev = await Dev.findOne({ email }).select("+password");
     if (!dev) {
         return res.status(400).json({
             message: "User not found."

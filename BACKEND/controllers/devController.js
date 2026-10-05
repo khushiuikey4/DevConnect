@@ -1,24 +1,17 @@
 const Dev = require("../models/dev");
 const Post = require("../models/post");
 //to check validity of the user (whether the user is logged in or not)
-exports.checkUserValidity = (req, res) => {
-    if (req.session.isLoggedIn === true) {
-        return res.status(200).json({
-            message: "user is logged in and can view the home page"
-        })
-    }
-    return res.status(400).json({
-        message: "user is not logged in."
-    })
-}
+exports.requireLogin = (req, res, next) => {
+    if (req.session.isLoggedIn === true) return next();
+    return res.status(401).json({ success: false, message: "user is not logged in." });
+};
 
 //to create a new post and save it into the dataBase
 exports.postNewPost = async (req, res) => {
     try {
-        // const response = this.checkUserValidity(req, res);
-        // if (!response.ok) return response;
         const postData = req.body;
-        const post = new Post({ author: postData.author, title: postData.title, content: postData.content, excerpt: postData.excerpt, tags: postData.tags, likes: postData.likes, savedBy: postData.savedBy, savedAs: postData.savedAs });
+        console.log(req.session.dev)
+        const post = new Post({ author: req.session.dev._id, title: postData.title, content: postData.content, excerpt: postData.excerpt, tags: postData.tags, status: postData.status });
         try {
             const savedPost = await post.save();
             return res.status(200).json({

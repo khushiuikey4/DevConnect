@@ -1,5 +1,5 @@
 import { useState } from "react";
-import DevSidebar from "../Components/DevSidebar";
+import DevSidebar from "./DevSidebar";
 
 /**
  * DevConnect — Dev Feed (feed.js)

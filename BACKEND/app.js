@@ -6,6 +6,8 @@ const searchRouter = require('./routes/searchRouter')
 const session = require('express-session');
 const cors = require('cors');
 const mongoose = require('mongoose');
+const connectMongo = require('connect-mongo');
+const MongoStore = connectMongo.default || connectMongo;
 
 const PORT = 3000;
 require("dotenv").config();
@@ -19,15 +21,16 @@ mongoose.connect(process.env.DB_PATH).then(() => {
 }).catch((err) => {
     console.log("MongoDB : Failed to Connect.", err)
 })
-app.use(cors());
+// server (app.js)
+app.use(cors({ origin: "http://localhost:5173", credentials: true }));
 app.use(express.json());
-app.use(
-    session({
-        secret: "ferrox",
-        resave: false,
-        saveUninitialized: false
-    })
-)
+app.use(session({
+    secret: "ferrox",
+    resave: false,
+    saveUninitialized: false,
+    store: MongoStore.create({ mongoUrl: process.env.DB_PATH }),
+    cookie: { maxAge: 1000 * 60 * 60 * 24 }   // 1 day
+}));
 app.use(express.urlencoded({ extended: true }));
 app.use('/authentication', authRouter);
 app.use('/dev', devRouter);

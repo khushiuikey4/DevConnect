@@ -57,7 +57,7 @@ export default function LandingPageHeader({ onSignIn, onStartWriting }) {
         </div>
 
         <div className="hidden md:flex items-center gap-2.5 ml-auto py-3">
-          <Link to='/authentication'
+          <Link to='/authenticationPage'
             onClick={onSignIn}
             className="px-4 py-2 font-mono text-[0.8rem] rounded border border-[#383a46] text-[#8b8d9b] hover:text-[#e8e9ee] hover:border-[#8b8d9b] transition-colors"
           >
@@ -95,7 +95,7 @@ export default function LandingPageHeader({ onSignIn, onStartWriting }) {
               how-it-works.js
             </a>
             <div className="flex gap-2.5 p-4">
-              <Link to="/authentication"
+              <Link to="/authenticationPage"
                 onClick={onSignIn}
                 className="flex-1 px-4 py-2 font-mono text-[0.8rem] rounded border border-[#383a46] text-[#8b8d9b]"
               >
