@@ -9,7 +9,9 @@ const cors = require('cors');
 const mongoose = require('mongoose');
 const connectMongo = require('connect-mongo');
 const MongoStore = connectMongo.default || connectMongo;
+const path = require("path");
 
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 const PORT = 3000;
 require("dotenv").config();
 

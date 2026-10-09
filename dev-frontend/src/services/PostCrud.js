@@ -8,7 +8,6 @@ export const addPostToServer = async (postInfo) => {
             credentials: "include",
             body: JSON.stringify(postInfo),
         });
-
         if (!response.ok) throw new Error("Failed to create post");
         const data = await response.json();
         return { ...data, success: response.ok };

@@ -1,34 +1,39 @@
 import { useState, useEffect, useMemo, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import { updateProfileToServer } from "../../services/DevCrud";
 
 /**
- * DevConnect — Edit Profile Body
- * Everything below EditProfileHeader, as ONE form: the avatar,
+ * DevConnect — My Profile Form
+ * Everything below the profile header, as ONE form: the avatar,
  * basic info, location & links, and security panels, plus the
- * sticky save bar. Owns its own background + max-width wrapper.
+ * sticky save bar and the confirmation modal.
  *
- * Form state lives here as the single source of truth (no FormData).
- * The page is wrapped in a real <form>, so pressing Enter in a text
- * field saves, and the save button is a true submit button.
- * `profile` should be a stable object (from state or fetched data),
- * not an inline literal — a new object each render would reset the form.
+ * Save flow (the only path to the server):
+ *   1. "save changes" (type="submit") -> handleSubmit validates the form.
+ *      Any error stops here and the modal never opens.
+ *   2. Valid -> a trimmed snapshot is stored and the confirm modal opens.
+ *   3. "Confirm" -> handleConfirm validates the snapshot once more, then
+ *      calls updateProfileToServer(pendingChanges).
+ *
+ * updateProfileToServer receives one object:
+ *   {
+ *     fields:       { username, bio, location, website, socialLinks },
+ *     avatarFile:   File | null,   // a new image, if one was picked
+ *     removeAvatar: boolean        // true if the avatar was removed
+ *   }
+ * It should either throw on failure, or resolve to { success: false,
+ * message } — both are handled. Anything else counts as success.
  *
  * Usage:
- *   <EditProfileHeader isDirty={isDirty} onBack={...} />
- *   <EditProfileBody
- *     profile={profile}
- *     isSaving={isSaving}
- *     serverError={serverError}
- *     onDirtyChange={setIsDirty}
- *     onSave={({ fields, avatarFile, removeAvatar }) => ...}
+ *   <MyProfileForm
+ *     profile={profile}                 // stable object, not an inline literal
+ *     serverError={serverError}         // optional
+ *     onDirtyChange={setIsDirty}        // drives the unsaved dot in the header
+ *     onSaved={(result) => setProfile(result.data)}  // refresh profile after save
  *     onChangePassword={() => navigate("/change-password")}
  *   />
- *
- * onSave receives:
- *   fields       — { username, bio, location, website, socialLinks }
- *   avatarFile   — a File if the user picked a new image, else null
- *   removeAvatar — true if the user removed their current avatar
  */
-import { Link } from "react-router-dom";
+
 const BIO_MAX = 160;
 const AVATAR_MAX_BYTES = 2 * 1024 * 1024;
 const AVATAR_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -124,9 +129,11 @@ function Field({ id, label, optional, counter, error, hint, children }) {
     );
 }
 
-// the confirmation section — internal, only used inside EditProfileBody
+// the sticky bar — internal, only used inside MyProfileForm.
+// The save button is a plain submit button: the form's onSubmit is the
+// only thing that runs when it is clicked.
 function SaveBar({ isDirty, isSaving, error, onCancel }) {
-    const disabled = !isDirty || isSaving;
+    const saveDisabled = !isDirty || isSaving;
 
     return (
         <div className="fixed inset-x-0 bottom-0 z-10 bg-[#23252ef2] backdrop-blur border-t border-[#383a46] px-5 sm:px-6 pt-3.5 pb-[calc(14px_+_env(safe-area-inset-bottom,0px))]">
@@ -145,19 +152,17 @@ function SaveBar({ isDirty, isSaving, error, onCancel }) {
                 </div>
 
                 <div className="flex gap-2.5 ml-auto">
-                    <Link to="/devHomePage">
-                        <button
-                            type="button"
-                            onClick={onCancel}
-                            disabled={disabled}
-                            className="px-[18px] py-[9px] rounded-md border border-[#383a46] text-[#8b8d9b] font-mono text-[0.82rem] hover:text-[#e8e9ee] hover:border-[#8b8d9b] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            cancel
-                        </button>
-                    </Link>
+                    <button
+                        type="button"
+                        onClick={onCancel}
+                        disabled={isSaving}
+                        className="px-[18px] py-[9px] rounded-md border border-[#383a46] text-[#8b8d9b] font-mono text-[0.82rem] hover:text-[#e8e9ee] hover:border-[#8b8d9b] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        cancel
+                    </button>
                     <button
                         type="submit"
-                        disabled={disabled}
+                        disabled={saveDisabled}
                         className="px-5 py-[9px] rounded-md border border-[#8fd19e] bg-[#8fd19e] text-[#182019] font-mono text-[0.82rem] font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {isSaving ? "saving..." : "save changes"}
@@ -170,12 +175,12 @@ function SaveBar({ isDirty, isSaving, error, onCancel }) {
 
 export default function MyProfileForm({
     profile = EMPTY_PROFILE,
-    isSaving = false,
     serverError = "",
     onDirtyChange,
-    onSave,
+    onSaved,
     onChangePassword,
 }) {
+    const navigate = useNavigate();
     const initial = useMemo(() => toFormState(profile), [profile]);
 
     const [form, setForm] = useState(initial);
@@ -184,6 +189,10 @@ export default function MyProfileForm({
     const [avatarPreview, setAvatarPreview] = useState("");
     const [removeAvatar, setRemoveAvatar] = useState(false);
     const [avatarError, setAvatarError] = useState("");
+    const [showConfirm, setShowConfirm] = useState(false);
+    const [pendingChanges, setPendingChanges] = useState(null);
+    const [confirmError, setConfirmError] = useState("");
+    const [isSaving, setIsSaving] = useState(false);
     const fileInputRef = useRef(null);
 
     // -------------------------
@@ -196,6 +205,9 @@ export default function MyProfileForm({
         setAvatarPreview("");
         setRemoveAvatar(false);
         setAvatarError("");
+        setShowConfirm(false);
+        setPendingChanges(null);
+        setConfirmError("");
     };
 
     useEffect(() => {
@@ -283,7 +295,7 @@ export default function MyProfileForm({
     const hasAvatarToRemove = !removeAvatar && (avatarPreview || profile.avatar);
 
     // -------------------------
-    // SUBMIT — the form's single submission path
+    // STEP 1 — "save changes": validate, and only then open the confirm modal
     // -------------------------
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -292,7 +304,8 @@ export default function MyProfileForm({
         setErrors(nextErrors);
         if (Object.keys(nextErrors).length > 0) return;
 
-        onSave?.({
+        setConfirmError("");
+        setPendingChanges({
             fields: {
                 username: form.username.trim(),
                 bio: form.bio.trim(),
@@ -307,6 +320,56 @@ export default function MyProfileForm({
             avatarFile,
             removeAvatar,
         });
+        setShowConfirm(true);
+    };
+
+    // -------------------------
+    // STEP 2 — "Confirm": validate again, then call the server function
+    // -------------------------
+    const handleConfirm = async () => {
+        if (!pendingChanges || isSaving) return;
+
+        // last line of defence: nothing unvalidated ever reaches the server
+        const nextErrors = validate(pendingChanges.fields);
+        if (Object.keys(nextErrors).length > 0) {
+            setErrors(nextErrors);
+            setShowConfirm(false);
+            setPendingChanges(null);
+            return;
+        }
+
+        setConfirmError("");
+        setIsSaving(true);
+        try {
+            const result = await updateProfileToServer(pendingChanges);
+
+            // the function may report failure by returning { success: false }
+            if (result?.success === false) {
+                setConfirmError(result.message || "Could not save profile changes. Please try again.");
+                return;
+            }
+
+            setShowConfirm(false);
+            setPendingChanges(null);
+            onSaved?.(result); // parent refreshes `profile`, which resets the form
+        } catch (error) {
+            setConfirmError(error?.message || "Could not save profile changes. Please try again.");
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleCancelConfirm = () => {
+        if (isSaving) return;
+        setShowConfirm(false);
+        setPendingChanges(null);
+        setConfirmError("");
+    };
+
+    // cancel in the sticky bar: discard edits and leave the page
+    const handleCancel = () => {
+        resetAll();
+        navigate("/devHomePage");
     };
 
     const bioNearLimit = form.bio.length >= BIO_MAX - 10;
@@ -485,14 +548,63 @@ export default function MyProfileForm({
                     </Panel>
                 </main>
 
-                {/* CONFIRMATION */}
+                {/* STICKY SAVE BAR */}
                 <SaveBar
                     isDirty={isDirty}
                     isSaving={isSaving}
                     error={serverError}
-                    onCancel={resetAll}
+                    onCancel={handleCancel}
                 />
             </form>
+
+            {/* CONFIRMATION MODAL */}
+            {showConfirm && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+                    <div
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="confirm-profile-title"
+                        className="w-full max-w-md rounded-xl border border-[#383a46] bg-[#23252e] p-6 shadow-xl"
+                    >
+                        <h2
+                            id="confirm-profile-title"
+                            className="mb-3 text-lg font-semibold text-[#e8e9ee]"
+                        >
+                            Confirm profile changes
+                        </h2>
+
+                        <p className="mb-6 text-sm leading-6 text-[#8b8d9b]">
+                            Are you sure you want to save these profile changes?
+                        </p>
+
+                        {(confirmError || serverError) && (
+                            <p className="mb-4 text-sm text-[#e18a8a]">
+                                {confirmError || serverError}
+                            </p>
+                        )}
+
+                        <div className="flex justify-end gap-3">
+                            <button
+                                type="button"
+                                onClick={handleCancelConfirm}
+                                disabled={isSaving}
+                                className="rounded-md border border-[#383a46] px-4 py-2 text-sm text-[#8b8d9b] hover:border-[#8b8d9b] hover:text-[#e8e9ee] disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                Cancel
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={handleConfirm}
+                                disabled={isSaving}
+                                className="rounded-md border border-[#8fd19e] bg-[#8fd19e] px-4 py-2 text-sm font-semibold text-[#182019] hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                {isSaving ? "Saving..." : "Confirm"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
