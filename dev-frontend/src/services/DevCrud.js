@@ -11,3 +11,22 @@ export async function updateProfileToServer(pendingChanges) {
     if (!response.ok) { throw new Error(result.message || "Profile update failed"); }
     return result;
 }
+
+
+export async function getProfileFromServer() {
+    const response = await fetch(
+        "http://localhost:3000/dev/get-dev",
+        {
+            method: "GET",
+            credentials: "include"
+        }
+    );
+
+    const result = await response.json();
+
+    if (!response.ok) {
+        throw new Error(result.message || "Failed to fetch profile");
+    }
+
+    return result;
+}

@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { updateProfileToServer } from "../../services/DevCrud";
+import { updateProfileToServer, getProfileFromServer } from "../../services/DevCrud";
 
 /**
  * DevConnect — My Profile Form
@@ -174,7 +174,7 @@ function SaveBar({ isDirty, isSaving, error, onCancel }) {
 }
 
 export default function MyProfileForm({
-    profile = EMPTY_PROFILE,
+    profile,
     serverError = "",
     onDirtyChange,
     onSaved,
@@ -182,7 +182,6 @@ export default function MyProfileForm({
 }) {
     const navigate = useNavigate();
     const initial = useMemo(() => toFormState(profile), [profile]);
-
     const [form, setForm] = useState(initial);
     const [errors, setErrors] = useState({});
     const [avatarFile, setAvatarFile] = useState(null);
@@ -221,6 +220,9 @@ export default function MyProfileForm({
             if (avatarPreview) URL.revokeObjectURL(avatarPreview);
         };
     }, [avatarPreview]);
+    const avatarUrl = profile.avatar
+        ? `http://localhost:3000${profile.avatar}`
+        : "";
 
     // -------------------------
     // DIRTY TRACKING
@@ -290,7 +292,9 @@ export default function MyProfileForm({
         setRemoveAvatar(true);
     };
 
-    const shownAvatar = removeAvatar ? "" : avatarPreview || profile.avatar;
+    const shownAvatar = removeAvatar
+        ? ""
+        : avatarPreview || avatarUrl;
     const avatarLetter = (form.username || profile.username || "?").charAt(0).toUpperCase();
     const hasAvatarToRemove = !removeAvatar && (avatarPreview || profile.avatar);
 
@@ -393,6 +397,9 @@ export default function MyProfileForm({
                                 <img
                                     src={shownAvatar}
                                     alt="your avatar"
+                                    onError={(e) => {
+                                        console.error("Avatar failed to load:", e.currentTarget.src);
+                                    }}
                                     className="w-[84px] h-[84px] rounded-full object-cover shrink-0"
                                 />
                             ) : (

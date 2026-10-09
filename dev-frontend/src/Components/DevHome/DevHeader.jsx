@@ -28,6 +28,7 @@ const NAV_TABS = [
 ];
 
 export default function DevHeader({
+  profile,
   user,
   activeTab, setTab,
   hasUnreadNotifications = false,
@@ -49,7 +50,7 @@ export default function DevHeader({
           <span className="w-2.5 h-2.5 rounded-full bg-[#8fd19e]" />
         </div>
         <span className="ml-3.5 font-mono text-[0.78rem] text-[#5a5c6b]">
-          ~/devconnect/{activeTab}.js — logged in as @{user?.userName ?? "you"}
+          ~/devconnect/{activeTab}.js — logged in as @{profile?.username ?? "you"}
         </span>
       </div>
 
@@ -103,7 +104,16 @@ export default function DevHeader({
               onClick={onOpenProfile}
               className="flex items-center gap-2 pl-1.5 pr-2.5 py-1.5 border border-[#383a46] rounded-full text-[0.8rem] hover:border-[#8b8d9b] transition-colors"
             >
-              <span className="w-6 h-6 rounded-full bg-gradient-to-br from-[#8fd19e] to-[#7eb6e0]" />
+              {profile?.avatar ? (
+                <img
+                  src={`http://localhost:3000${profile.avatar}`}
+                  alt="Profile"
+                  className="w-6 h-6 rounded-full object-cover"
+                />
+              ) : (
+                <span className="w-6 h-6 rounded-full bg-gradient-to-br from-[#8fd19e] to-[#7eb6e0]" />
+              )}
+
               {user?.userName ?? "you"}
             </button>
           </Link>
