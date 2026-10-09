@@ -98,13 +98,15 @@ export default function DevHeader({
             )}
           </button>
 
-          <button
-            onClick={onOpenProfile}
-            className="flex items-center gap-2 pl-1.5 pr-2.5 py-1.5 border border-[#383a46] rounded-full text-[0.8rem] hover:border-[#8b8d9b] transition-colors"
-          >
-            <span className="w-6 h-6 rounded-full bg-gradient-to-br from-[#8fd19e] to-[#7eb6e0]" />
-            {user?.userName ?? "you"}
-          </button>
+          <Link to="/MyProfileUpdate">
+            <button
+              onClick={onOpenProfile}
+              className="flex items-center gap-2 pl-1.5 pr-2.5 py-1.5 border border-[#383a46] rounded-full text-[0.8rem] hover:border-[#8b8d9b] transition-colors"
+            >
+              <span className="w-6 h-6 rounded-full bg-gradient-to-br from-[#8fd19e] to-[#7eb6e0]" />
+              {user?.userName ?? "you"}
+            </button>
+          </Link>
         </div>
 
         {/* mobile menu toggle */}

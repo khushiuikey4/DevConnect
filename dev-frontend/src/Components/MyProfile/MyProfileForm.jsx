@@ -1,0 +1,498 @@
+import { useState, useEffect, useMemo, useRef } from "react";
+
+/**
+ * DevConnect — Edit Profile Body
+ * Everything below EditProfileHeader, as ONE form: the avatar,
+ * basic info, location & links, and security panels, plus the
+ * sticky save bar. Owns its own background + max-width wrapper.
+ *
+ * Form state lives here as the single source of truth (no FormData).
+ * The page is wrapped in a real <form>, so pressing Enter in a text
+ * field saves, and the save button is a true submit button.
+ * `profile` should be a stable object (from state or fetched data),
+ * not an inline literal — a new object each render would reset the form.
+ *
+ * Usage:
+ *   <EditProfileHeader isDirty={isDirty} onBack={...} />
+ *   <EditProfileBody
+ *     profile={profile}
+ *     isSaving={isSaving}
+ *     serverError={serverError}
+ *     onDirtyChange={setIsDirty}
+ *     onSave={({ fields, avatarFile, removeAvatar }) => ...}
+ *     onChangePassword={() => navigate("/change-password")}
+ *   />
+ *
+ * onSave receives:
+ *   fields       — { username, bio, location, website, socialLinks }
+ *   avatarFile   — a File if the user picked a new image, else null
+ *   removeAvatar — true if the user removed their current avatar
+ */
+import { Link } from "react-router-dom";
+const BIO_MAX = 160;
+const AVATAR_MAX_BYTES = 2 * 1024 * 1024;
+const AVATAR_TYPES = ["image/jpeg", "image/png", "image/webp"];
+
+const EMPTY_PROFILE = {
+    username: "",
+    email: "",
+    bio: "",
+    avatar: "",
+    location: "",
+    website: "",
+    socialLinks: { github: "", twitter: "", linkedin: "" },
+};
+
+const SOCIAL_FIELDS = [
+    { key: "github", label: "github", placeholder: "https://github.com/username" },
+    { key: "twitter", label: "twitter / x", placeholder: "https://x.com/username" },
+    { key: "linkedin", label: "linkedin", placeholder: "https://linkedin.com/in/username" },
+];
+
+function toFormState(profile) {
+    return {
+        username: profile.username ?? "",
+        bio: profile.bio ?? "",
+        location: profile.location ?? "",
+        website: profile.website ?? "",
+        socialLinks: {
+            github: profile.socialLinks?.github ?? "",
+            twitter: profile.socialLinks?.twitter ?? "",
+            linkedin: profile.socialLinks?.linkedin ?? "",
+        },
+    };
+}
+
+function isValidUrl(value) {
+    if (!value) return true; // empty is fine, these fields are optional
+    try {
+        const url = new URL(value);
+        return url.protocol === "http:" || url.protocol === "https:";
+    } catch {
+        return false;
+    }
+}
+
+function validate(form) {
+    const errors = {};
+    if (!form.username.trim()) errors.username = "username is required";
+    if (form.bio.length > BIO_MAX) errors.bio = `bio must be ${BIO_MAX} characters or fewer`;
+    if (!isValidUrl(form.website.trim())) errors.website = "must start with http:// or https://";
+    SOCIAL_FIELDS.forEach(({ key }) => {
+        if (!isValidUrl(form.socialLinks[key].trim())) {
+            errors[key] = "must start with http:// or https://";
+        }
+    });
+    return errors;
+}
+
+function inputClass(hasError, mono = false) {
+    return `w-full bg-[#2a2c37] border ${hasError ? "border-[#e18a8a]" : "border-[#383a46]"
+        } rounded-md px-3.5 py-[11px] text-[#e8e9ee] text-[0.9rem] outline-none focus:border-[#8fd19e] placeholder:text-[#5a5c6b] transition-colors ${mono ? "font-mono text-[0.84rem]" : ""
+        }`;
+}
+
+function Panel({ title, children }) {
+    return (
+        <div className="bg-[#23252e] border border-[#383a46] rounded-[10px] p-[18px] sm:p-[22px_24px] mb-4">
+            <h4 className="font-mono text-[0.78rem] text-[#8fd19e] font-medium mb-[18px]">
+        // {title}
+            </h4>
+            {children}
+        </div>
+    );
+}
+
+function Field({ id, label, optional, counter, error, hint, children }) {
+    return (
+        <div className="mb-[18px] last:mb-0">
+            <label
+                htmlFor={id}
+                className="flex justify-between items-center font-mono text-[0.76rem] text-[#7eb6e0] mb-2"
+            >
+                <span>{label}</span>
+                {optional && <span className="text-[#5a5c6b]">optional</span>}
+                {counter}
+            </label>
+            {children}
+            {error ? (
+                <div className="text-[0.74rem] text-[#e18a8a] mt-1.5">{error}</div>
+            ) : hint ? (
+                <div className="text-[0.74rem] text-[#5a5c6b] mt-1.5">{hint}</div>
+            ) : null}
+        </div>
+    );
+}
+
+// the confirmation section — internal, only used inside EditProfileBody
+function SaveBar({ isDirty, isSaving, error, onCancel }) {
+    const disabled = !isDirty || isSaving;
+
+    return (
+        <div className="fixed inset-x-0 bottom-0 z-10 bg-[#23252ef2] backdrop-blur border-t border-[#383a46] px-5 sm:px-6 pt-3.5 pb-[calc(14px_+_env(safe-area-inset-bottom,0px))]">
+            <div className="max-w-[760px] mx-auto flex items-center justify-between gap-3.5 flex-wrap">
+                <div className="flex items-center gap-2 font-mono text-[0.78rem] min-w-0">
+                    {error ? (
+                        <span className="text-[#e18a8a]">{error}</span>
+                    ) : isDirty ? (
+                        <>
+                            <span className="w-[7px] h-[7px] rounded-full bg-[#e8a87c] shrink-0" />
+                            <span className="text-[#8b8d9b]">unsaved changes</span>
+                        </>
+                    ) : (
+                        <span className="text-[#5a5c6b]">no changes</span>
+                    )}
+                </div>
+
+                <div className="flex gap-2.5 ml-auto">
+                    <Link to="/devHomePage">
+                        <button
+                            type="button"
+                            onClick={onCancel}
+                            disabled={disabled}
+                            className="px-[18px] py-[9px] rounded-md border border-[#383a46] text-[#8b8d9b] font-mono text-[0.82rem] hover:text-[#e8e9ee] hover:border-[#8b8d9b] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            cancel
+                        </button>
+                    </Link>
+                    <button
+                        type="submit"
+                        disabled={disabled}
+                        className="px-5 py-[9px] rounded-md border border-[#8fd19e] bg-[#8fd19e] text-[#182019] font-mono text-[0.82rem] font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        {isSaving ? "saving..." : "save changes"}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+export default function MyProfileForm({
+    profile = EMPTY_PROFILE,
+    isSaving = false,
+    serverError = "",
+    onDirtyChange,
+    onSave,
+    onChangePassword,
+}) {
+    const initial = useMemo(() => toFormState(profile), [profile]);
+
+    const [form, setForm] = useState(initial);
+    const [errors, setErrors] = useState({});
+    const [avatarFile, setAvatarFile] = useState(null);
+    const [avatarPreview, setAvatarPreview] = useState("");
+    const [removeAvatar, setRemoveAvatar] = useState(false);
+    const [avatarError, setAvatarError] = useState("");
+    const fileInputRef = useRef(null);
+
+    // -------------------------
+    // RESET — on cancel, and whenever a fresh profile arrives (e.g. after saving)
+    // -------------------------
+    const resetAll = () => {
+        setForm(initial);
+        setErrors({});
+        setAvatarFile(null);
+        setAvatarPreview("");
+        setRemoveAvatar(false);
+        setAvatarError("");
+    };
+
+    useEffect(() => {
+        resetAll();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [initial]);
+
+    // free the temporary preview URL when it changes or on unmount
+    useEffect(() => {
+        return () => {
+            if (avatarPreview) URL.revokeObjectURL(avatarPreview);
+        };
+    }, [avatarPreview]);
+
+    // -------------------------
+    // DIRTY TRACKING
+    // -------------------------
+    const isDirty = useMemo(
+        () =>
+            JSON.stringify(form) !== JSON.stringify(initial) ||
+            avatarFile !== null ||
+            removeAvatar,
+        [form, initial, avatarFile, removeAvatar]
+    );
+
+    useEffect(() => {
+        onDirtyChange?.(isDirty);
+    }, [isDirty, onDirtyChange]);
+
+    // -------------------------
+    // FIELD HANDLERS
+    // -------------------------
+    const clearError = (key) =>
+        setErrors((prev) => {
+            if (!prev[key]) return prev;
+            const { [key]: _removed, ...rest } = prev;
+            return rest;
+        });
+
+    const updateField = (name) => (e) => {
+        setForm((prev) => ({ ...prev, [name]: e.target.value }));
+        clearError(name);
+    };
+
+    const updateSocial = (key) => (e) => {
+        setForm((prev) => ({
+            ...prev,
+            socialLinks: { ...prev.socialLinks, [key]: e.target.value },
+        }));
+        clearError(key);
+    };
+
+    // -------------------------
+    // AVATAR HANDLERS
+    // -------------------------
+    const handleAvatarChange = (e) => {
+        const file = e.target.files?.[0];
+        e.target.value = ""; // lets the user re-pick the same file later
+        if (!file) return;
+
+        if (!AVATAR_TYPES.includes(file.type)) {
+            setAvatarError("use a JPG, PNG or WebP image");
+            return;
+        }
+        if (file.size > AVATAR_MAX_BYTES) {
+            setAvatarError("image must be under 2 MB");
+            return;
+        }
+
+        setAvatarError("");
+        setAvatarFile(file);
+        setAvatarPreview(URL.createObjectURL(file));
+        setRemoveAvatar(false);
+    };
+
+    const handleRemoveAvatar = () => {
+        setAvatarFile(null);
+        setAvatarPreview("");
+        setAvatarError("");
+        setRemoveAvatar(true);
+    };
+
+    const shownAvatar = removeAvatar ? "" : avatarPreview || profile.avatar;
+    const avatarLetter = (form.username || profile.username || "?").charAt(0).toUpperCase();
+    const hasAvatarToRemove = !removeAvatar && (avatarPreview || profile.avatar);
+
+    // -------------------------
+    // SUBMIT — the form's single submission path
+    // -------------------------
+    const handleSubmit = (e) => {
+        e.preventDefault();
+
+        const nextErrors = validate(form);
+        setErrors(nextErrors);
+        if (Object.keys(nextErrors).length > 0) return;
+
+        onSave?.({
+            fields: {
+                username: form.username.trim(),
+                bio: form.bio.trim(),
+                location: form.location.trim(),
+                website: form.website.trim(),
+                socialLinks: {
+                    github: form.socialLinks.github.trim(),
+                    twitter: form.socialLinks.twitter.trim(),
+                    linkedin: form.socialLinks.linkedin.trim(),
+                },
+            },
+            avatarFile,
+            removeAvatar,
+        });
+    };
+
+    const bioNearLimit = form.bio.length >= BIO_MAX - 10;
+
+    return (
+        <div className="min-h-screen bg-[#1e1f26] text-[#e8e9ee]">
+            {/* noValidate: our own validation shows the messages, not the browser's popups */}
+            <form onSubmit={handleSubmit} noValidate>
+                <main className="max-w-[760px] mx-auto px-5 sm:px-6 pt-9 pb-32">
+                    <div className="font-mono text-[0.82rem] text-[#5a5c6b] mb-1.5">
+            // <span className="text-[#8fd19e]">make it yours</span>
+                    </div>
+                    <h1 className="text-[1.7rem] font-semibold mb-7 tracking-[-0.01em]">
+                        Edit profile
+                    </h1>
+
+                    {/* AVATAR */}
+                    <Panel title="avatar">
+                        <div className="flex items-center gap-5 flex-wrap">
+                            {shownAvatar ? (
+                                <img
+                                    src={shownAvatar}
+                                    alt="your avatar"
+                                    className="w-[84px] h-[84px] rounded-full object-cover shrink-0"
+                                />
+                            ) : (
+                                <div className="w-[84px] h-[84px] rounded-full bg-gradient-to-br from-[#8fd19e] to-[#7eb6e0] flex items-center justify-center font-mono text-[1.8rem] font-semibold text-[#182019] shrink-0">
+                                    {avatarLetter}
+                                </div>
+                            )}
+
+                            <div className="flex flex-col gap-2">
+                                <div className="flex gap-2 flex-wrap">
+                                    <button
+                                        type="button"
+                                        onClick={() => fileInputRef.current?.click()}
+                                        className="font-mono text-[0.76rem] px-3.5 py-[7px] rounded-md border border-[#383a46] bg-[#2a2c37] text-[#8b8d9b] hover:text-[#e8e9ee] hover:border-[#8b8d9b] transition-colors"
+                                    >
+                                        upload new
+                                    </button>
+                                    {hasAvatarToRemove && (
+                                        <button
+                                            type="button"
+                                            onClick={handleRemoveAvatar}
+                                            className="font-mono text-[0.76rem] px-3.5 py-[7px] rounded-md border border-[#383a46] bg-[#2a2c37] text-[#8b8d9b] hover:text-[#e18a8a] hover:border-[#e18a8a] transition-colors"
+                                        >
+                                            remove
+                                        </button>
+                                    )}
+                                    <input
+                                        ref={fileInputRef}
+                                        type="file"
+                                        accept={AVATAR_TYPES.join(",")}
+                                        onChange={handleAvatarChange}
+                                        className="hidden"
+                                    />
+                                </div>
+                                <div
+                                    className={`text-[0.74rem] ${avatarError ? "text-[#e18a8a]" : "text-[#5a5c6b]"
+                                        }`}
+                                >
+                                    {avatarError || "JPG, PNG or WebP · max 2 MB · square works best"}
+                                </div>
+                            </div>
+                        </div>
+                    </Panel>
+
+                    {/* BASIC INFO */}
+                    <Panel title="basic info">
+                        <Field
+                            id="profile-username"
+                            label="username"
+                            error={errors.username}
+                            hint="shown on your posts and profile · must be unique"
+                        >
+                            <input
+                                id="profile-username"
+                                type="text"
+                                value={form.username}
+                                onChange={updateField("username")}
+                                placeholder="your_username"
+                                className={inputClass(!!errors.username, true)}
+                            />
+                        </Field>
+
+                        <Field
+                            id="profile-email"
+                            label="email"
+                            hint="private — only used for login, never shown publicly"
+                        >
+                            <input
+                                id="profile-email"
+                                type="email"
+                                value={profile.email}
+                                readOnly
+                                className={`${inputClass(false, true)} opacity-60 cursor-not-allowed`}
+                            />
+                        </Field>
+
+                        <Field
+                            id="profile-bio"
+                            label="bio"
+                            error={errors.bio}
+                            counter={
+                                <span className={bioNearLimit ? "text-[#e8a87c]" : "text-[#5a5c6b]"}>
+                                    {form.bio.length} / {BIO_MAX}
+                                </span>
+                            }
+                        >
+                            <textarea
+                                id="profile-bio"
+                                value={form.bio}
+                                onChange={updateField("bio")}
+                                maxLength={BIO_MAX}
+                                placeholder="Tell people what you build..."
+                                className={`${inputClass(!!errors.bio)} resize-y min-h-[92px] leading-[1.6]`}
+                            />
+                        </Field>
+                    </Panel>
+
+                    {/* LOCATION & LINKS */}
+                    <Panel title="location & links">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-[18px]">
+                            <Field id="profile-location" label="location" optional>
+                                <input
+                                    id="profile-location"
+                                    type="text"
+                                    value={form.location}
+                                    onChange={updateField("location")}
+                                    placeholder="City, Country"
+                                    className={inputClass(false)}
+                                />
+                            </Field>
+
+                            <Field id="profile-website" label="website" optional error={errors.website}>
+                                <input
+                                    id="profile-website"
+                                    type="url"
+                                    value={form.website}
+                                    onChange={updateField("website")}
+                                    placeholder="https://"
+                                    className={inputClass(!!errors.website, true)}
+                                />
+                            </Field>
+                        </div>
+
+                        {SOCIAL_FIELDS.map(({ key, label, placeholder }) => (
+                            <Field key={key} id={`profile-${key}`} label={label} optional error={errors[key]}>
+                                <input
+                                    id={`profile-${key}`}
+                                    type="url"
+                                    value={form.socialLinks[key]}
+                                    onChange={updateSocial(key)}
+                                    placeholder={placeholder}
+                                    className={inputClass(!!errors[key], true)}
+                                />
+                            </Field>
+                        ))}
+                    </Panel>
+
+                    {/* SECURITY */}
+                    <Panel title="security">
+                        <div className="flex justify-between items-center gap-3.5 flex-wrap">
+                            <p className="m-0 text-[0.86rem] text-[#8b8d9b] max-w-[480px]">
+                                Change your password from a separate screen so it can ask for your
+                                current one.
+                            </p>
+                            <button
+                                type="button"
+                                onClick={onChangePassword}
+                                className="font-mono text-[0.76rem] px-3.5 py-[7px] rounded-md border border-[#383a46] bg-[#2a2c37] text-[#8b8d9b] hover:text-[#e8e9ee] hover:border-[#8b8d9b] transition-colors"
+                            >
+                                change password
+                            </button>
+                        </div>
+                    </Panel>
+                </main>
+
+                {/* CONFIRMATION */}
+                <SaveBar
+                    isDirty={isDirty}
+                    isSaving={isSaving}
+                    error={serverError}
+                    onCancel={resetAll}
+                />
+            </form>
+        </div>
+    );
+}

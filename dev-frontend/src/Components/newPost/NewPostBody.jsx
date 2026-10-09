@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { addPostToServer } from "../../services/crud";
+import { addPostToServer } from "../../services/PostCrud";
 
 const MAX_TAGS = 5;
 

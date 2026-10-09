@@ -1,10 +1,9 @@
 const express = require('express');
-const { requireLogin, postNewPost, postEditPost, deletePost, getAllPosts, getAllPostsById } = require('../controllers/devController');
 const devRouter = express.Router();
-// devRouter.get('/check-user-validity', checkUserValidity);
-devRouter.post('/add-new-post', requireLogin, postNewPost);
-devRouter.post('/edit-post/:id', postEditPost);
-devRouter.delete('/delete-post/:id', deletePost);
-devRouter.get('/get-all-posts', getAllPosts);
-devRouter.get('/get-all-posts/:id', getAllPostsById);
+const { getAllDevs, getDev, updateDev, deleteDev } = require("../controllers/devController")
+devRouter.get('/get-all-devs', getAllDevs);
+devRouter.get('/get-dev/:id', getDev);
+devRouter.post('/update-dev/:id', updateDev);
+devRouter.delete('/delete-dev/:id', deleteDev);
+
 exports.devRouter = devRouter;

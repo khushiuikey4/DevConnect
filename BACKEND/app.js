@@ -2,6 +2,7 @@ const express = require('express');
 const app = express();
 const { authRouter } = require('./routes/authRouter')
 const { devRouter } = require('./routes/devRouter')
+const { postRouter } = require('./routes/postRouter')
 const searchRouter = require('./routes/searchRouter')
 const session = require('express-session');
 const cors = require('cors');
@@ -33,5 +34,6 @@ app.use(session({
 }));
 app.use(express.urlencoded({ extended: true }));
 app.use('/authentication', authRouter);
-app.use('/dev', devRouter);
+app.use('/dev', postRouter);
 app.use('/search', searchRouter);
+app.use('/dev', devRouter);

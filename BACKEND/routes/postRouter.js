@@ -1,0 +1,10 @@
+const express = require('express');
+const { requireLogin, postNewPost, postEditPost, deletePost, getAllPosts, getAllPostsById } = require('../controllers/postController');
+const postRouter = express.Router();
+// devRouter.get('/check-user-validity', checkUserValidity);
+postRouter.post('/add-new-post', requireLogin, postNewPost);
+postRouter.post('/edit-post/:id', postEditPost);
+postRouter.delete('/delete-post/:id', deletePost);
+postRouter.get('/get-all-posts', getAllPosts);
+postRouter.get('/get-all-posts/:id', getAllPostsById);
+exports.postRouter = postRouter;

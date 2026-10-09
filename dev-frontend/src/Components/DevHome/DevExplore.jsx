@@ -1,27 +1,5 @@
 import { useState } from "react";
 
-/**
- * DevConnect — Dev Explore (explore.js)
- * Everything from the outer page container down to the post grid —
- * no header included (bring your own).
- *
- * Owns its own background + max-width wrapper, same pattern as
- * DevMyPosts and DevSaved. Unlike DevFeed, there's no "following"
- * concept here — this is the public, unpersonalized browse page.
- *
- * Usage:
- *   import DevExplore from "./DevExplore";
- *   <DevExplore
- *     topics={topics}
- *     posts={posts}
- *     onSearch={(q) => ...}
- *     onTopicClick={(tag) => ...}
- *     onSortChange={(sort) => ...}
- *     onPostClick={(id) => ...}
- *     onLoadMore={() => ...}
- *   />
- */
-
 const SORTS = [
   { key: "latest", label: "latest" },
   { key: "trending", label: "trending" },
@@ -233,11 +211,10 @@ export default function DevExplore({
               <button
                 key={sort.key}
                 onClick={() => onSortChange?.(sort.key)}
-                className={`font-mono text-[0.8rem] py-2 mr-[22px] border-b-2 transition-colors ${
-                  activeSort === sort.key
+                className={`font-mono text-[0.8rem] py-2 mr-[22px] border-b-2 transition-colors ${activeSort === sort.key
                     ? "text-[#e8e9ee] border-[#8fd19e]"
                     : "text-[#5a5c6b] border-transparent hover:text-[#8b8d9b]"
-                }`}
+                  }`}
               >
                 {sort.label}
               </button>
