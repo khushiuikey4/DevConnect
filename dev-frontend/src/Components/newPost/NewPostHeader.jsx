@@ -12,6 +12,7 @@
  *   import NewPostHeader from "./NewPostHeader";
  *   <NewPostHeader isDirty={true} onBack={() => navigate(-1)} />
  */
+import { Link } from "react-router-dom";
 
 export default function NewPostHeader({ isDirty = false, onBack }) {
   return (
@@ -34,12 +35,14 @@ export default function NewPostHeader({ isDirty = false, onBack }) {
           new-post.md
         </div>
 
-        <button
-          onClick={onBack}
-          className="ml-auto px-4 py-2 font-mono text-[0.8rem] border border-[#383a46] rounded text-[#8b8d9b] hover:text-[#e8e9ee] hover:border-[#8b8d9b] transition-colors"
-        >
-          ← back
-        </button>
+        <Link to="/devHomePage" className="ml-auto px-4 py-2">
+          <button
+            onClick={onBack}
+            className="ml-auto px-4 py-2 font-mono text-[0.8rem] border border-[#383a46] rounded text-[#8b8d9b] hover:text-[#e8e9ee] hover:border-[#8b8d9b] transition-colors"
+          >
+            ← back
+          </button>
+        </Link>
       </div>
     </div>
   );
