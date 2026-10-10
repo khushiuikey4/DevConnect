@@ -4,12 +4,14 @@ const { authRouter } = require('./routes/authRouter')
 const { devRouter } = require('./routes/devRouter')
 const { postRouter } = require('./routes/postRouter')
 const searchRouter = require('./routes/searchRouter')
+const saveRouter = require('./routes/saveRouter')
 const session = require('express-session');
 const cors = require('cors');
 const mongoose = require('mongoose');
 const connectMongo = require('connect-mongo');
 const MongoStore = connectMongo.default || connectMongo;
 const path = require("path");
+const myPostRouter = require('./routes/myPostRouter');
 
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 const PORT = 3000;
@@ -39,3 +41,5 @@ app.use('/authentication', authRouter);
 app.use('/dev', postRouter);
 app.use('/search', searchRouter);
 app.use('/dev', devRouter);
+app.use('/saved', saveRouter);
+app.use('/my-posts', myPostRouter);
