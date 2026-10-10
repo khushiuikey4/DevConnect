@@ -191,7 +191,7 @@ const getFollowing = async (usersList, postsList, req) => {
             _id: { $in: eligiblePostIds },
             status: "published"
         })
-            .populate("author", "username profilePicture")
+            .populate("author", "username avatar")
     ]);
 
     return { users, posts };
@@ -302,7 +302,7 @@ const getLatest = async (usersList, postsList) => {
             $gte: cutoff
         }
     })
-        .populate("author", "username profilePicture")
+        .populate("author", "username avatar")
         .sort({ createdAt: -1 });
 
     return {

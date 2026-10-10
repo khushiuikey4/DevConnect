@@ -56,10 +56,24 @@ const readTime = (content = "") =>
 const gradientFor = (name = "") =>
   AVATAR_GRADIENTS[name.charCodeAt(0) % AVATAR_GRADIENTS.length] ?? AVATAR_GRADIENTS[0];
 
+const API_URL = "http://localhost:3000";
+
+// avatars are stored as paths like "/uploads/pic.png", so they need the backend address
+const avatarUrl = (src) => (src?.startsWith("http") ? src : src ? `${API_URL}${src.startsWith("/") ? "" : "/"}${src}` : "");
+
 function Avatar({ src, name = "", large = false }) {
+  const [failed, setFailed] = useState(false);
   const size = large ? "w-12 h-12 text-base" : "w-[22px] h-[22px]";
-  if (src) {
-    return <img src={src} alt={name} className={`${size} rounded-full object-cover shrink-0`} />;
+
+  if (src && !failed) {
+    return (
+      <img
+        src={avatarUrl(src)}
+        alt=""
+        onError={() => setFailed(true)} // broken image -> fall back to the gradient circle
+        className={`${size} rounded-full object-cover shrink-0`}
+      />
+    );
   }
   return (
     <span
