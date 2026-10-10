@@ -6,6 +6,7 @@ import { useState, useEffect } from "react";
 import { Routes, Route } from "react-router-dom"
 import NewPost from "./Components/newPost/NewPost";
 import { useSearchParams } from "react-router-dom";
+import ProtectedRoute from "./Components/AuthenticationPage/protectedRoute";
 
 
 function App() {
@@ -23,9 +24,19 @@ function App() {
     <Routes>
       <Route path="/" element={<LandingPage></LandingPage>} />
       <Route path="/authenticationPage" element={<AuthPage onLogin={true} onSignup={false}></AuthPage>} />
-      <Route path="/devHomePage" element={<DevHomePage setSearchParams={setSearchParams} tab={tab} setTab={setTab} ></DevHomePage>} />
-      <Route path="/newPostPage" element={<NewPost tab={tab} setTab={setTab}></NewPost>} />
-      <Route path="/MyProfileUpdate" element={<MyProfile></MyProfile>} />
+      <Route path="/devHomePage" element={<ProtectedRoute>
+        <DevHomePage
+          setSearchParams={setSearchParams}
+          tab={tab}
+          setTab={setTab}
+        />
+      </ProtectedRoute>} />
+      <Route path="/newPostPage" element={<ProtectedRoute>
+        <NewPost tab={tab} setTab={setTab} />
+      </ProtectedRoute>} />
+      <Route path="/MyProfileUpdate" element={<ProtectedRoute>
+        <MyProfile />
+      </ProtectedRoute>} />
     </Routes>
 
   </>
