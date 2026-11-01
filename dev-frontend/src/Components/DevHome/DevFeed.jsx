@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import DevSidebar from "./DevSidebar";
 import { searchFromServer, fetchLPostsFromServer, fetchUPostsFromServer } from "../../services/search";
-
+import { addPostLikeToServer } from "../../services/postInteraction"
+import { getCurrentDevFromServer } from "../../services/currentDev"
 /**
  * DevConnect — Dev Feed (feed.js)
  *
@@ -90,22 +91,26 @@ function Avatar({ src, name = "", id, large = false, gotoProfile }) {
 }
 
 /* ------------------------------ cards ------------------------------ */
-
 function PostCard({ post, currentUserId, onLike, onSave, onClick, gotoProfile }) {
   const authorName = post.author?.username ?? "unknown";
   const authorAvatar = post.author?.avatar ?? post.author?.profilePicture;
   const likes = Array.isArray(post.likes) ? post.likes : [];
+  const [likeCount, setLikeCount] = useState(likes.length);
   const savedBy = Array.isArray(post.savedBy) ? post.savedBy : [];
-  const liked = !!currentUserId && likes.includes(currentUserId);
   const saved = !!currentUserId && savedBy.includes(currentUserId);
   const excerpt = post.excerpt || post.content?.slice(0, 160) || "";
+  const authorId = post.author._id;
+  const postId = post._id;
+  const [liked, setLiked] = useState(
+    post.likes?.some(id => String(id) === String(currentUserId)) ?? false
+  );
 
   return (
     <div className="bg-[#23252e] border border-[#383a46] rounded-[10px] p-[22px_24px] mb-4">
       <div className="flex items-center gap-2.5 text-[0.8rem] text-[#5a5c6b] mb-3.5">
-        <Avatar src={authorAvatar} name={authorName} id={post.author._id} gotoProfile={gotoProfile} />
+        <Avatar src={authorAvatar} name={authorName} id={authorId} gotoProfile={gotoProfile} />
         <span className="cursor-pointer" onClick={() => {
-          gotoProfile(post.author._id);
+          gotoProfile(authorId);
         }}>{authorName}</span>
         <span>· {readTime(post.content)} · {timeAgo(post.createdAt)}</span>
       </div>
@@ -132,11 +137,21 @@ function PostCard({ post, currentUserId, onLike, onSave, onClick, gotoProfile })
 
         <div className="flex gap-4">
           <button
-            onClick={() => onLike?.(post._id)}
+            onClick={() => {
+              // onLike?.(post._id)
+              const nextLiked = !liked;
+              setLiked(nextLiked);
+              addPostLikeToServer(postId, nextLiked);
+              if (nextLiked) {
+                setLikeCount(prev => prev + 1);
+              } else {
+                setLikeCount(prev => prev - 1);
+              }
+            }}
             className={`font-mono text-[0.78rem] flex items-center gap-1.5 ${liked ? "text-[#e18a8a]" : "text-[#5a5c6b] hover:text-[#e8e9ee]"
               }`}
           >
-            {liked ? "♥" : "♡"} {likes.length}
+            {liked ? "♥" : "♡"} {likeCount}
           </button>
           <button
             onClick={() => onClick?.(post._id)}
@@ -195,7 +210,6 @@ function UserCard({ user, onFollow, onClick }) {
 export default function DevFeed({
   gotoProfile,
   tags = ["react", "nodejs", "mongodb", "typescript"],
-  currentUserId,
   onSearch,
   onSortChange,
   onFilterChange,
@@ -207,6 +221,17 @@ export default function DevFeed({
   onFollow,
   onTagClick,
 }) {
+  const [currentUserId, setCurrentUserId] = useState(null);
+
+  useEffect(() => {
+    const fetchCurrentUser = async () => {
+      const user = await getCurrentDevFromServer();
+      setCurrentUserId(user?.currentDev?._id);
+    };
+
+    fetchCurrentUser();
+  }, []);
+
   const [query, setQuery] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [category, setCategory] = useState("posts"); // "posts" | "people"
