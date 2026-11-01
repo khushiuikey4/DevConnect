@@ -7,7 +7,7 @@ import { getProfileFromServer } from "../../services/DevCrud";
 import { useState, useEffect } from "react";
 
 
-export default function DevHomePage({ tab, setTab, setSearchParams }) {
+export default function DevHomePage({ tab, setTab, setSearchParams, gotoProfile }) {
     const [profile, setProfile] = useState(null);
 
     useEffect(() => {
@@ -24,7 +24,7 @@ export default function DevHomePage({ tab, setTab, setSearchParams }) {
     }, []);
     return <>
         <DevHeader setSearchParams={setSearchParams} activeTab={tab} setTab={setTab} profile={profile}></DevHeader>
-        {tab == "feed" && < DevContainer></DevContainer>}
+        {tab == "feed" && < DevContainer gotoProfile={gotoProfile}></DevContainer>}
         {tab == "my-posts" && <DevMyPosts></DevMyPosts>}
         {tab == "saved" && <DevSaved></DevSaved>}
         {tab == "explore" && <DevExplore></DevExplore>}

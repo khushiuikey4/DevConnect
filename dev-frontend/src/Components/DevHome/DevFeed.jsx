@@ -61,23 +61,28 @@ const API_URL = "http://localhost:3000";
 // avatars are stored as paths like "/uploads/pic.png", so they need the backend address
 const avatarUrl = (src) => (src?.startsWith("http") ? src : src ? `${API_URL}${src.startsWith("/") ? "" : "/"}${src}` : "");
 
-function Avatar({ src, name = "", large = false }) {
+function Avatar({ src, name = "", id, large = false, gotoProfile }) {
   const [failed, setFailed] = useState(false);
   const size = large ? "w-12 h-12 text-base" : "w-[22px] h-[22px]";
 
   if (src && !failed) {
     return (
-      <img
+      <img onClick={() => {
+        gotoProfile(id);
+      }}
         src={avatarUrl(src)}
         alt=""
         onError={() => setFailed(true)} // broken image -> fall back to the gradient circle
-        className={`${size} rounded-full object-cover shrink-0`}
+        className={`${size} cursor-pointer rounded-full object-cover shrink-0`}
       />
     );
   }
   return (
-    <span
-      className={`${size} rounded-full bg-gradient-to-br ${gradientFor(name)} flex items-center justify-center text-[#1e1f26] font-semibold shrink-0`}
+    <span onClick={() => {
+      gotoProfile(id);
+      className = "cursor-pointer"
+    }}
+      className={`cursor-pointer${size} rounded-full bg-gradient-to-br ${gradientFor(name)} flex items-center justify-center text-[#1e1f26] font-semibold shrink-0`}
     >
       {large ? name[0]?.toUpperCase() ?? "?" : ""}
     </span>
@@ -86,7 +91,7 @@ function Avatar({ src, name = "", large = false }) {
 
 /* ------------------------------ cards ------------------------------ */
 
-function PostCard({ post, currentUserId, onLike, onSave, onClick }) {
+function PostCard({ post, currentUserId, onLike, onSave, onClick, gotoProfile }) {
   const authorName = post.author?.username ?? "unknown";
   const authorAvatar = post.author?.avatar ?? post.author?.profilePicture;
   const likes = Array.isArray(post.likes) ? post.likes : [];
@@ -98,8 +103,10 @@ function PostCard({ post, currentUserId, onLike, onSave, onClick }) {
   return (
     <div className="bg-[#23252e] border border-[#383a46] rounded-[10px] p-[22px_24px] mb-4">
       <div className="flex items-center gap-2.5 text-[0.8rem] text-[#5a5c6b] mb-3.5">
-        <Avatar src={authorAvatar} name={authorName} />
-        <span>{authorName}</span>
+        <Avatar src={authorAvatar} name={authorName} id={post.author._id} gotoProfile={gotoProfile} />
+        <span className="cursor-pointer" onClick={() => {
+          gotoProfile(post.author._id);
+        }}>{authorName}</span>
         <span>· {readTime(post.content)} · {timeAgo(post.createdAt)}</span>
       </div>
 
@@ -186,6 +193,7 @@ function UserCard({ user, onFollow, onClick }) {
 /* ------------------------------ feed ------------------------------ */
 
 export default function DevFeed({
+  gotoProfile,
   tags = ["react", "nodejs", "mongodb", "typescript"],
   currentUserId,
   onSearch,
@@ -397,6 +405,7 @@ export default function DevFeed({
         {category === "posts"
           ? posts.map((post) => (
             <PostCard
+              gotoProfile={gotoProfile}
               key={post._id}
               post={post}
               currentUserId={currentUserId}

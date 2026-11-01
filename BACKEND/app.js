@@ -12,6 +12,7 @@ const connectMongo = require('connect-mongo');
 const MongoStore = connectMongo.default || connectMongo;
 const path = require("path");
 const myPostRouter = require('./routes/myPostRouter');
+const profileRouter = require('./routes/profileRouter')
 
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 const PORT = 3000;
@@ -43,3 +44,4 @@ app.use('/search', searchRouter);
 app.use('/dev', devRouter);
 app.use('/saved', saveRouter);
 app.use('/my-posts', myPostRouter);
+app.use('/userProfile', profileRouter);

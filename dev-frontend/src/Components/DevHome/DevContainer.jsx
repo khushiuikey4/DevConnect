@@ -22,6 +22,7 @@ import DevHeader from "./DevHeader";
 import DevSidebar from "./DevSidebar";
 
 export default function DevContainer({
+  gotoProfile,
   children,
   sidebar,
   user,
@@ -39,7 +40,7 @@ export default function DevContainer({
         className={`max-w-[1080px] mx-auto px-7 py-9 ${sidebar ? "grid grid-cols-1 md:grid-cols-[1fr_300px] gap-10" : ""
           }`}
       >
-        <DevFeed></DevFeed>
+        <DevFeed gotoProfile={gotoProfile}></DevFeed>
       </main>
     </div>
   );
