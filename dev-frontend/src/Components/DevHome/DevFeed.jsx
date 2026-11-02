@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import DevSidebar from "./DevSidebar";
 import { searchFromServer, fetchLPostsFromServer, fetchUPostsFromServer } from "../../services/search";
-import { addPostLikeToServer } from "../../services/postInteraction"
+import { addPostLikeToServer, savePostToServer } from "../../services/postInteraction"
 import { getCurrentDevFromServer } from "../../services/currentDev"
 /**
  * DevConnect — Dev Feed (feed.js)
@@ -91,18 +91,20 @@ function Avatar({ src, name = "", id, large = false, gotoProfile }) {
 }
 
 /* ------------------------------ cards ------------------------------ */
-function PostCard({ post, currentUserId, onLike, onSave, onClick, gotoProfile }) {
+function PostCard({ post, currentUser, onLike, onSave, onClick, gotoProfile }) {
   const authorName = post.author?.username ?? "unknown";
   const authorAvatar = post.author?.avatar ?? post.author?.profilePicture;
   const likes = Array.isArray(post.likes) ? post.likes : [];
   const [likeCount, setLikeCount] = useState(likes.length);
   const savedBy = Array.isArray(post.savedBy) ? post.savedBy : [];
-  const saved = !!currentUserId && savedBy.includes(currentUserId);
+  // const saved = !!currentUserId && savedBy.includes(currentUserId);
+  const saved = currentUser.saved?.includes(post._id) ?? false;
+  const [saveToggle, setSaveToggle] = useState(saved);
   const excerpt = post.excerpt || post.content?.slice(0, 160) || "";
   const authorId = post.author._id;
   const postId = post._id;
   const [liked, setLiked] = useState(
-    post.likes?.some(id => String(id) === String(currentUserId)) ?? false
+    post.likes?.some(id => String(id) === String(currentUser._id)) ?? false
   );
 
   return (
@@ -160,11 +162,16 @@ function PostCard({ post, currentUserId, onLike, onSave, onClick, gotoProfile })
             💬 {post.commentCount ?? 0}
           </button>
           <button
-            onClick={() => onSave?.(post._id)}
-            className={`font-mono text-[0.78rem] ${saved ? "text-[#e8a87c]" : "text-[#5a5c6b] hover:text-[#e8e9ee]"
+            onClick={() => {
+              onSave?.(post._id)
+              setSaveToggle(prev => !prev)
+              savePostToServer(post._id, !saveToggle);
+            }
+            }
+            className={`font-mono text-[0.78rem] ${saveToggle ? "text-[#e8a87c]" : "text-[#5a5c6b] hover:text-[#e8e9ee]"
               }`}
           >
-            {saved ? "🔖 saved" : "🔖 save"}
+            {saveToggle ? "🔖 saved" : "🔖 save"}
           </button>
         </div>
       </div>
@@ -221,12 +228,12 @@ export default function DevFeed({
   onFollow,
   onTagClick,
 }) {
-  const [currentUserId, setCurrentUserId] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
 
   useEffect(() => {
     const fetchCurrentUser = async () => {
       const user = await getCurrentDevFromServer();
-      setCurrentUserId(user?.currentDev?._id);
+      setCurrentUser(user?.currentDev);
     };
 
     fetchCurrentUser();
@@ -433,7 +440,7 @@ export default function DevFeed({
               gotoProfile={gotoProfile}
               key={post._id}
               post={post}
-              currentUserId={currentUserId}
+              currentUser={currentUser}
               onLike={onLike}
               onSave={onSave}
               onClick={onPostClick}
