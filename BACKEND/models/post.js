@@ -31,11 +31,6 @@ const postSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: "Dev"
     }],
-
-    savedBy: [{
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Dev"
-    }],
     status: {
         type: String,
         enum: ["draft", "published"],

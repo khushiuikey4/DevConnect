@@ -49,6 +49,9 @@ const devSchema = new mongoose.Schema({
     // --- social graph (for follow/followers, DevSidebar "who to follow") ---
     followers: [{ type: mongoose.Schema.Types.ObjectId, ref: "Dev" }],
     following: [{ type: mongoose.Schema.Types.ObjectId, ref: "Dev" }],
+    saved: [{
+        type: mongoose.Schema.Types.ObjectId,
+    }],
 
 }, {
     timestamps: true // createdAt doubles as "joined DevConnect on..."

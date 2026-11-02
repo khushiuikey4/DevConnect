@@ -1,10 +1,9 @@
 const Post = require('../models/post');
-
+const Dev = require('../models/dev')
 exports.postInteractionMethods = async (req, res) => {
     try {
-        const { postId, task, liked } = req.body;
         const userId = req.session?.dev?._id;
-
+        const task = req.body.task;
         if (!userId) {
             return res.status(401).json({
                 message: "Please log in first"
@@ -13,6 +12,7 @@ exports.postInteractionMethods = async (req, res) => {
 
         if (task == 0) {
             // Like the post
+            const { postId, liked } = req.body;
             if (liked) {
                 const updatedPost = await Post.findOneAndUpdate(
                     { _id: postId },
@@ -37,6 +37,26 @@ exports.postInteractionMethods = async (req, res) => {
                 message: "Post liked successfully",
                 post: updatedPost
             });
+        } else if (task == 1) {
+            //saved the post
+            const { postId, saved } = req.body;
+            if (saved) {
+                const updatedPost = await Dev.findOneAndUpdate(
+                    { _id: userId },
+                    { $addToSet: { saved: postId } },
+                    { new: true }
+                )
+            } else {
+                const updatedPost = await Dev.findOneAndUpdate(
+                    { _id: userId },
+                    { $pull: { saved: postId } },
+                    { new: true }
+                )
+            }
+            return res.status(200).json({
+                message: "Post saved Successfully",
+                post: updatedPost
+            })
         }
 
     } catch (error) {
