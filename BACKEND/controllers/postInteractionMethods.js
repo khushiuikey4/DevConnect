@@ -57,11 +57,24 @@ exports.postInteractionMethods = async (req, res) => {
                 message: "Post saved Successfully",
                 post: updatedPost
             })
+        } else if (task == 2) {
+            const { postId, comment } = req.body;
+            if (comment.length > 0) {
+                const updatedPost = await Post.findOneAndUpdate(
+                    { _id: postId },
+                    { $addToSet: { comments: { author: userId, comment } } }
+                    , { new: true }
+                )
+            }
+            return res.status(200).json({
+                message: "Comment added Successfully",
+                post: updatedPost
+            })
         }
 
     } catch (error) {
         return res.status(500).json({
-            message: "Couldn't like the post",
+            message: "Couldn't interact the post",
             error: error.message
         });
     }

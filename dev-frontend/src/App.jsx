@@ -9,6 +9,7 @@ import { useSearchParams } from "react-router-dom";
 import ProtectedRoute from "./Components/AuthenticationPage/protectedRoute";
 import DevProfile from "./Components/DevProfile/devProfile";
 import getOtherUserProfileFromServer from "./services/UserProfile"
+import ReadPost from "./Components/DevHome/ReadPost/readPost";
 
 
 function App() {
@@ -52,6 +53,7 @@ function App() {
         <MyProfile />
       </ProtectedRoute>} />
       <Route path="/devProfile" element={<DevProfile profile={devUserProfile} posts={devUserPosts}></DevProfile>}></Route>
+      <Route path="/post-details" element={<ReadPost />} />
     </Routes>
 
   </>

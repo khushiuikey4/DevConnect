@@ -35,7 +35,17 @@ const postSchema = new mongoose.Schema({
         type: String,
         enum: ["draft", "published"],
         default: "draft"
-    }
+    },
+    comments: [{
+        author: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Dev"
+        },
+        comment: {
+            type: String
+        }
+
+    }]
 }, {
     timestamps: true
 });

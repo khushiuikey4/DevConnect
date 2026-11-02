@@ -1,6 +1,6 @@
 export async function addPostLikeToServer(postId, liked) {
     try {
-        const response = fetch('http://localhost:3000/postInteraction', {
+        const response = await fetch('http://localhost:3000/postInteraction', {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             credentials: "include",
@@ -15,7 +15,7 @@ export async function addPostLikeToServer(postId, liked) {
 }
 export async function savePostToServer(postId, saved) {
     try {
-        const response = fetch('http://localhost:3000/postInteraction', {
+        const response = await fetch('http://localhost:3000/postInteraction', {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             credentials: "include",
@@ -24,6 +24,21 @@ export async function savePostToServer(postId, saved) {
     } catch (error) {
         return {
             message: "Error from the backend in saving this post",
+            error: error.message
+        }
+    }
+}
+export async function addCommentToServer(postId, comment) {
+    try {
+        const response = await fetch('http://localhost:3000/postInteraction', {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ postId: postId, task: 2, comment: comment })
+        })
+    } catch (error) {
+        return {
+            message: "Error from the backend in adding comment to this post",
             error: error.message
         }
     }

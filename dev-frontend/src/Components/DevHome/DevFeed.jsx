@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
-import DevSidebar from "./DevSidebar";
+// import DevSidebar from "./DevSidebar";
 import { searchFromServer, fetchLPostsFromServer, fetchUPostsFromServer } from "../../services/search";
 import { addPostLikeToServer, savePostToServer } from "../../services/postInteraction"
 import { getCurrentDevFromServer } from "../../services/currentDev"
+import { Link } from "react-router-dom";
 /**
  * DevConnect — Dev Feed (feed.js)
  *
@@ -108,74 +109,85 @@ function PostCard({ post, currentUser, onLike, onSave, onClick, gotoProfile }) {
   );
 
   return (
-    <div className="bg-[#23252e] border border-[#383a46] rounded-[10px] p-[22px_24px] mb-4">
-      <div className="flex items-center gap-2.5 text-[0.8rem] text-[#5a5c6b] mb-3.5">
-        <Avatar src={authorAvatar} name={authorName} id={authorId} gotoProfile={gotoProfile} />
-        <span className="cursor-pointer" onClick={() => {
-          gotoProfile(authorId);
-        }}>{authorName}</span>
-        <span>· {readTime(post.content)} · {timeAgo(post.createdAt)}</span>
-      </div>
-
-      <h3
-        onClick={() => onClick?.(post._id)}
-        className="text-[1.08rem] font-semibold mb-2 cursor-pointer hover:text-[#8fd19e] transition-colors"
-      >
-        {post.title}
-      </h3>
-      <p className="text-[#8b8d9b] text-[0.88rem] leading-[1.6] mb-4">{excerpt}</p>
-
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex gap-2 flex-wrap">
-          {(post.tags ?? []).map((tag) => (
-            <span
-              key={tag}
-              className="font-mono text-[0.72rem] px-2.5 py-[3px] rounded text-[#8fd19e] bg-[#8fd19e1a]"
-            >
-              {tag}
-            </span>
-          ))}
+    <Link
+      to="/post-details"
+      state={{ post }}
+    >
+      <div className="bg-[#23252e] border border-[#383a46] rounded-[10px] p-[22px_24px] mb-4" >
+        <div className="flex items-center gap-2.5 text-[0.8rem] text-[#5a5c6b] mb-3.5">
+          <Avatar src={authorAvatar} name={authorName} id={authorId} gotoProfile={gotoProfile} />
+          <span className="cursor-pointer" onClick={() => {
+            gotoProfile(authorId);
+          }}>{authorName}</span>
+          <span>· {readTime(post.content)} · {timeAgo(post.createdAt)}</span>
         </div>
 
-        <div className="flex gap-4">
-          <button
-            onClick={() => {
-              // onLike?.(post._id)
-              const nextLiked = !liked;
-              setLiked(nextLiked);
-              addPostLikeToServer(postId, nextLiked);
-              if (nextLiked) {
-                setLikeCount(prev => prev + 1);
-              } else {
-                setLikeCount(prev => prev - 1);
-              }
+        <h3
+          onClick={() => onClick?.(post._id)}
+          className="text-[1.08rem] font-semibold mb-2 cursor-pointer hover:text-[#8fd19e] transition-colors"
+        >
+          {post.title}
+        </h3>
+        <p className="text-[#8b8d9b] text-[0.88rem] leading-[1.6] mb-4">{excerpt}</p>
+
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div className="flex gap-2 flex-wrap">
+            {(post.tags ?? []).map((tag) => (
+              <span
+                key={tag}
+                className="font-mono text-[0.72rem] px-2.5 py-[3px] rounded text-[#8fd19e] bg-[#8fd19e1a]"
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
+
+          <div
+            className="flex gap-4"
+            onClick={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
             }}
-            className={`font-mono text-[0.78rem] flex items-center gap-1.5 ${liked ? "text-[#e18a8a]" : "text-[#5a5c6b] hover:text-[#e8e9ee]"
-              }`}
           >
-            {liked ? "♥" : "♡"} {likeCount}
-          </button>
-          <button
-            onClick={() => onClick?.(post._id)}
-            className="font-mono text-[0.78rem] text-[#5a5c6b] hover:text-[#e8e9ee] flex items-center gap-1.5"
-          >
-            💬 {post.commentCount ?? 0}
-          </button>
-          <button
-            onClick={() => {
-              onSave?.(post._id)
-              setSaveToggle(prev => !prev)
-              savePostToServer(post._id, !saveToggle);
-            }
-            }
-            className={`font-mono text-[0.78rem] ${saveToggle ? "text-[#e8a87c]" : "text-[#5a5c6b] hover:text-[#e8e9ee]"
-              }`}
-          >
-            {saveToggle ? "🔖 saved" : "🔖 save"}
-          </button>
+            <button
+              onClick={() => {
+                // onLike?.(post._id)
+                const nextLiked = !liked;
+                setLiked(nextLiked);
+                addPostLikeToServer(postId, nextLiked);
+                if (nextLiked) {
+                  setLikeCount(prev => prev + 1);
+                } else {
+                  setLikeCount(prev => prev - 1);
+                }
+              }}
+              className={`font-mono text-[0.78rem] flex items-center gap-1.5 ${liked ? "text-[#e18a8a]" : "text-[#5a5c6b] hover:text-[#e8e9ee]"
+                }`}
+            >
+              {liked ? "♥" : "♡"} {likeCount}
+            </button>
+            <button
+              onClick={() => onClick?.(post._id)}
+              className="font-mono text-[0.78rem] text-[#5a5c6b] hover:text-[#e8e9ee] flex items-center gap-1.5"
+            >
+              💬 {post.commentCount ?? 0}
+            </button>
+            <button
+              onClick={() => {
+                onSave?.(post._id)
+                setSaveToggle(prev => !prev)
+                savePostToServer(post._id, !saveToggle);
+              }
+              }
+              className={`font-mono text-[0.78rem] ${saveToggle ? "text-[#e8a87c]" : "text-[#5a5c6b] hover:text-[#e8e9ee]"
+                }`}
+            >
+              {saveToggle ? "🔖 saved" : "🔖 save"}
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+    </Link>
   );
 }
 
@@ -339,7 +351,9 @@ export default function DevFeed({
   );
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-[1fr_300px] gap-10 items-start">
+    // <div className="grid grid-cols-1 md:grid-cols-[1fr_300px] gap-10 items-start">
+    <div className="grid grid-cols-1 w-full min-w-0 items-start">
+
       {/* main feed column */}
       <div>
         <div className="font-mono text-[0.82rem] text-[#5a5c6b] mb-1.5">
@@ -352,6 +366,7 @@ export default function DevFeed({
 
         {/* search */}
         <div className="flex items-center gap-2.5 bg-[#23252e] border border-[#383a46] rounded-lg px-4 py-2.5 mb-5">
+          {/* <div className="flex items-center gap-2.5 bg-[#23252e] border border-[#383a46] rounded-lg px-4 py-2.5 mb-5 flex-1 min-w-0 bg-transparent border-none outline-none"> */}
           <span className="text-[#5a5c6b] text-[0.9rem]">⌕</span>
           <input
             type="text"
@@ -461,7 +476,7 @@ export default function DevFeed({
       </div>
 
       {/* sidebar column */}
-      <DevSidebar onFollow={onFollow} onTagClick={onTagClick} />
+      {/* <DevSidebar onFollow={onFollow} onTagClick={onTagClick} /> */}
     </div>
   );
 }
