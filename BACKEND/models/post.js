@@ -1,4 +1,18 @@
 const mongoose = require('mongoose');
+const commentSchema = new mongoose.Schema({
+    author: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Dev",
+        required: true
+    },
+    comment: {
+        type: String,
+        required: true,
+        trim: true
+    }
+}, {
+    timestamps: true
+})
 const postSchema = new mongoose.Schema({
     author: {
         type: mongoose.Schema.Types.ObjectId,
@@ -36,16 +50,7 @@ const postSchema = new mongoose.Schema({
         enum: ["draft", "published"],
         default: "draft"
     },
-    comments: [{
-        author: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: "Dev"
-        },
-        comment: {
-            type: String
-        }
-
-    }]
+    comments: [commentSchema]
 }, {
     timestamps: true
 });

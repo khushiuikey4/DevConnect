@@ -1,7 +1,7 @@
 
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { addCommentToServer } from "../../../services/postInteraction"
+import { addCommentToServer, getCommentsFromServer } from "../../../services/postInteraction"
 import {
     Heart,
     MessageCircle,
@@ -22,7 +22,6 @@ const EMPTY_COMMENTS = [];
 
 const ReadPost = ({
     currentUser,
-    comments: initialComments = EMPTY_COMMENTS,
     isSaved = false,
     onLike,
     onAddComment,
@@ -36,13 +35,32 @@ const ReadPost = ({
     const [liked, setLiked] = useState(false);
     const [likeCount, setLikeCount] = useState(0);
     const [saved, setSaved] = useState(isSaved);
-    const [comments, setComments] = useState(initialComments);
+    const [comments, setComments] = useState([]);
     const [newComment, setNewComment] = useState("");
     const [submitting, setSubmitting] = useState(false);
 
+
     const currentUserId = currentUser?._id?.toString();
 
+
     // Synchronize post interaction states
+    useEffect(() => {
+        if (!post?._id) return;
+
+        const fetchComments = async () => {
+            try {
+                const response = await getCommentsFromServer(post._id);
+
+                console.log("Comments API response:", response);
+
+                setComments(response.comments || []);
+            } catch (error) {
+                console.error("Unable to fetch comments:", error);
+            }
+        };
+
+        fetchComments();
+    }, [post?._id]);
     useEffect(() => {
         if (!post) return;
 
@@ -63,11 +81,11 @@ const ReadPost = ({
     // Use content as the dependency instead of array reference.
     // This prevents repeated updates when the parent creates a new
     // array containing the same comments on every render.
-    const initialCommentsKey = JSON.stringify(initialComments);
+    // const initialCommentsKey = JSON.stringify(initialComments);
 
-    useEffect(() => {
-        setComments(initialComments);
-    }, [initialCommentsKey]);
+    // useEffect(() => {
+    //     setComments(initialComments);
+    // }, [initialCommentsKey]);
 
     if (!post) {
         return (
@@ -185,20 +203,14 @@ const ReadPost = ({
         setSubmitting(true);
 
         try {
-            const createdComment = await onAddComment?.(
-                post._id,
-                content
-            );
+            await addCommentToServer(post._id, content);
 
-            const commentToAdd = createdComment || {
-                _id: Date.now(),
-                content,
-                author: currentUser,
-                createdAt: new Date().toISOString(),
-            };
+            // Fetch the updated comments
+            const response = await getCommentsFromServer(post._id);
 
-            setComments((prev) => [...prev, commentToAdd]);
+            setComments(response.comments || []);
             setNewComment("");
+
         } catch (error) {
             console.error("Unable to add comment:", error);
         } finally {
@@ -508,9 +520,9 @@ const ReadPost = ({
                         <div className="flex justify-end mt-4">
 
                             <button
-                                onClick={() => {
-                                    addCommentToServer(post._id, newComment,)
-                                }}
+                                // onClick={() => {
+                                //     addCommentToServer(post._id, newComment,)
+                                // }}
                                 type="submit"
                                 disabled={!newComment.trim() || submitting}
                                 className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-[#8bd19e] text-[#17251c] text-sm font-semibold hover:bg-[#9be0ad] disabled:opacity-40 disabled:cursor-not-allowed transition"
@@ -524,21 +536,29 @@ const ReadPost = ({
                     </form>
 
                     {/* Existing Comments */}
+
+                    {/* Existing Comments */}
                     <div className="w-full bg-[#242630] border border-[#383a45] rounded-xl p-5 sm:p-7">
 
-                        <h3 className="text-sm font-semibold text-gray-300 mb-6">
-                            All comments
-                        </h3>
+                        <div className="flex items-center justify-between mb-6">
+                            <h3 className="text-sm font-semibold text-gray-200">
+                                All comments
+                            </h3>
 
-                        <div className="space-y-7">
+                            <span className="text-xs text-gray-500">
+                                {comments.length} comments
+                            </span>
+                        </div>
+
+                        <div className="space-y-4">
 
                             {comments.length > 0 ? (
                                 comments.map((comment) => {
 
-                                    const commentAuthor = getCommentAuthor(comment);
+                                    const commentAuthor =
+                                        comment.author?.username || "Anonymous";
 
-                                    const commentAvatar =
-                                        comment.author?.avatar;
+                                    const commentAvatar = comment.author?.avatar;
 
                                     const commentAvatarUrl = commentAvatar
                                         ? commentAvatar.startsWith("http")
@@ -549,7 +569,7 @@ const ReadPost = ({
                                     return (
                                         <div
                                             key={comment._id}
-                                            className="flex items-start gap-4"
+                                            className="flex items-start gap-4 p-4 rounded-xl bg-[#1e2029] border border-[#343743] hover:border-[#454957] transition-colors"
                                         >
 
                                             {commentAvatarUrl ? (
@@ -566,20 +586,20 @@ const ReadPost = ({
 
                                             <div className="flex-1 min-w-0">
 
-                                                <div className="flex flex-wrap items-center gap-3 mb-2">
+                                                <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
 
                                                     <span className="text-gray-100 text-sm font-semibold">
                                                         {commentAuthor}
                                                     </span>
 
                                                     <span className="text-gray-500 text-xs">
-                                                        {formatDate(comment.createdAt)}
+                                                        {formatDate(comment.updatedAt)}
                                                     </span>
 
                                                 </div>
 
                                                 <p className="text-gray-300 text-sm leading-7 break-words">
-                                                    {comment.content || comment.text}
+                                                    {comment.comment || comment.text}
                                                 </p>
 
                                             </div>
@@ -610,6 +630,7 @@ const ReadPost = ({
 
                         </div>
                     </div>
+
 
                 </section>
 

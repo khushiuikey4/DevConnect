@@ -70,6 +70,21 @@ exports.postInteractionMethods = async (req, res) => {
                 message: "Comment added Successfully",
                 post: updatedPost
             })
+        } else if (task == 3) {
+            const { postId } = req.body;
+            const post = await Post.findById(postId)
+                .populate("comments.author", "username avatar");
+
+            if (!post) {
+                return res.status(404).json({
+                    message: "Post not found"
+                });
+            }
+
+            return res.status(200).json({
+                message: "Post fetched successfully",
+                comments: post.comments
+            });
         }
 
     } catch (error) {
