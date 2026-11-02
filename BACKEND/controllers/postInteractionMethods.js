@@ -59,17 +59,37 @@ exports.postInteractionMethods = async (req, res) => {
             })
         } else if (task == 2) {
             const { postId, comment } = req.body;
-            if (comment.length > 0) {
-                const updatedPost = await Post.findOneAndUpdate(
-                    { _id: postId },
-                    { $addToSet: { comments: { author: userId, comment } } }
-                    , { new: true }
-                )
+
+            if (!comment?.trim()) {
+                return res.status(400).json({
+                    message: "Comment cannot be empty"
+                });
             }
+
+            const updatedPost = await Post.findByIdAndUpdate(
+                postId,
+                {
+                    $push: {
+                        comments: {
+                            author: userId,
+                            comment: comment.trim(),
+                            parentComment: null
+                        }
+                    }
+                },
+                { new: true }
+            );
+
+            if (!updatedPost) {
+                return res.status(404).json({
+                    message: "Post not found"
+                });
+            }
+
             return res.status(200).json({
-                message: "Comment added Successfully",
+                message: "Comment added successfully",
                 post: updatedPost
-            })
+            });
         } else if (task == 3) {
             const { postId } = req.body;
             const post = await Post.findById(postId)
@@ -85,8 +105,48 @@ exports.postInteractionMethods = async (req, res) => {
                 message: "Post fetched successfully",
                 comments: post.comments
             });
-        }
+        } else if (task == 4) {
+            const { postId, commentId, replyText } = req.body;
 
+            if (!replyText?.trim()) {
+                return res.status(400).json({
+                    message: "Reply cannot be empty"
+                });
+            }
+
+            const post = await Post.findById(postId);
+
+            if (!post) {
+                return res.status(404).json({
+                    message: "Post not found"
+                });
+            }
+
+            // Find the parent comment
+            const parentComment = post.comments.id(commentId);
+
+            if (!parentComment || parentComment.parentComment) {
+                return res.status(404).json({
+                    message: "Parent comment not found"
+                });
+            }
+
+            // Add reply to the comments array
+            post.comments.push({
+                author: userId,
+                parentComment: commentId,
+                comment: replyText.trim()
+            });
+
+            await post.save();
+
+            await post.populate("comments.author", "username avatar");
+
+            return res.status(200).json({
+                message: "Reply added successfully",
+                comments: post.comments
+            });
+        }
     } catch (error) {
         return res.status(500).json({
             message: "Couldn't interact the post",

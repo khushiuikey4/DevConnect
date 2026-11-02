@@ -66,3 +66,19 @@ export async function getCommentsFromServer(postId) {
         }
     }
 }
+export async function addReplyToCommentOnServer(currentUserId, postId, commentId, replyText) {
+    try {
+        const response = await fetch('http://localhost:3000/postInteraction', {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ postId: postId, task: 4, commentId: commentId, replyText: replyText, currentUserId: currentUserId })
+        })
+
+    } catch (error) {
+        return {
+            message: "Error from the backend in fetching comments for this post.",
+            error: error.message
+        }
+    }
+}

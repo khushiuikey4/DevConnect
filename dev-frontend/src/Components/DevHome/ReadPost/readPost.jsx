@@ -1,11 +1,13 @@
 
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { addCommentToServer, getCommentsFromServer } from "../../../services/postInteraction"
+import { addCommentToServer, getCommentsFromServer, addReplyToCommentOnServer } from "../../../services/postInteraction"
+import { getCurrentDevFromServer } from "../../../services/currentDev";
 import {
     Heart,
     MessageCircle,
     Share2,
+    Reply,
     Bookmark,
     ArrowLeft,
     MoreHorizontal,
@@ -21,7 +23,6 @@ import {
 const EMPTY_COMMENTS = [];
 
 const ReadPost = ({
-    currentUser,
     isSaved = false,
     onLike,
     onAddComment,
@@ -29,6 +30,20 @@ const ReadPost = ({
 }) => {
     const navigate = useNavigate();
     const location = useLocation();
+    const [currentUser, setCurrentUser] = useState(null);
+
+    useEffect(() => {
+        const fetchCurrentUser = async () => {
+            try {
+                const user = await getCurrentDevFromServer();
+                setCurrentUser(user);
+            } catch (error) {
+                console.error("Unable to fetch current user:", error);
+            }
+        };
+
+        fetchCurrentUser();
+    }, []);
 
     const post = location.state?.post;
 
@@ -41,6 +56,32 @@ const ReadPost = ({
 
 
     const currentUserId = currentUser?._id?.toString();
+
+    const [replyTo, setReplyTo] = useState(null);
+    const [replyText, setReplyText] = useState("");
+    const [expandedReplies, setExpandedReplies] = useState({});
+
+    const handleReply = async (commentId) => {
+        if (!replyText.trim()) return;
+
+        // onAddReply(commentId, replyText);
+        const response = await addReplyToCommentOnServer(currentUserId, post._id, commentId, replyText)
+        setReplyText("");
+        setReplyTo(null);
+
+        // Expand replies after submitting
+        setExpandedReplies(prev => ({
+            ...prev,
+            [commentId]: true
+        }));
+    };
+
+    const toggleReplies = (commentId) => {
+        setExpandedReplies(prev => ({
+            ...prev,
+            [commentId]: !prev[commentId]
+        }));
+    };
 
 
     // Synchronize post interaction states
@@ -538,6 +579,7 @@ const ReadPost = ({
                     {/* Existing Comments */}
 
                     {/* Existing Comments */}
+
                     <div className="w-full bg-[#242630] border border-[#383a45] rounded-xl p-5 sm:p-7">
 
                         <div className="flex items-center justify-between mb-6">
@@ -550,63 +592,220 @@ const ReadPost = ({
                             </span>
                         </div>
 
-                        <div className="space-y-4">
+                        <div className="space-y-7">
 
-                            {comments.length > 0 ? (
-                                comments.map((comment) => {
+                            {comments.filter(comment => !comment.parentComment).length > 0 ? (
+                                comments
+                                    .filter(comment => !comment.parentComment)
+                                    .map(comment => {
 
-                                    const commentAuthor =
-                                        comment.author?.username || "Anonymous";
+                                        const commentAuthor = comment.author?.username || "Anonymous";
+                                        const commentAvatar = comment.author?.avatar;
 
-                                    const commentAvatar = comment.author?.avatar;
+                                        const commentAvatarUrl = commentAvatar
+                                            ? commentAvatar.startsWith("http")
+                                                ? commentAvatar
+                                                : `http://localhost:3000${commentAvatar}`
+                                            : "";
 
-                                    const commentAvatarUrl = commentAvatar
-                                        ? commentAvatar.startsWith("http")
-                                            ? commentAvatar
-                                            : `http://localhost:3000${commentAvatar}`
-                                        : "";
+                                        const isLiked = comment.likes?.some(
+                                            like => (like._id || like).toString() === currentUser?._id?.toString()
+                                        );
 
-                                    return (
-                                        <div
-                                            key={comment._id}
-                                            className="flex items-start gap-4 p-4 rounded-xl bg-[#1e2029] border border-[#343743] hover:border-[#454957] transition-colors"
-                                        >
+                                        const replies = comments.filter(
+                                            reply => reply.parentComment?.toString() === comment._id.toString()
+                                        );
 
-                                            {commentAvatarUrl ? (
-                                                <img
-                                                    src={commentAvatarUrl}
-                                                    alt={commentAuthor}
-                                                    className="w-10 h-10 rounded-full object-cover shrink-0"
-                                                />
-                                            ) : (
-                                                <div className="w-10 h-10 shrink-0 rounded-full bg-[#303b3a] flex items-center justify-center text-[#a8d9b3]">
-                                                    <UserRound size={18} />
+                                        return (
+                                            <div key={comment._id}>
+
+                                                {/* Main comment */}
+                                                <div className="flex items-start gap-3">
+
+                                                    {commentAvatarUrl ? (
+                                                        <img
+                                                            src={commentAvatarUrl}
+                                                            alt={commentAuthor}
+                                                            className="w-10 h-10 rounded-full object-cover shrink-0"
+                                                        />
+                                                    ) : (
+                                                        <div className="w-10 h-10 shrink-0 rounded-full bg-[#303b3a] flex items-center justify-center text-[#a8d9b3]">
+                                                            <UserRound size={18} />
+                                                        </div>
+                                                    )}
+
+                                                    <div className="flex-1 min-w-0">
+
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <span className="text-gray-100 text-sm font-semibold">
+                                                                {commentAuthor}
+                                                            </span>
+
+                                                            <span className="text-gray-500 text-xs">
+                                                                {formatDate(comment.updatedAt)}
+                                                            </span>
+                                                        </div>
+
+                                                        <p className="text-gray-300 text-sm leading-7 break-words">
+                                                            {comment.comment}
+                                                        </p>
+
+                                                        {/* Actions */}
+                                                        <div className="flex items-center gap-5 mt-2">
+
+                                                            <button
+                                                                onClick={() => onLikeComment(comment._id)}
+                                                                className={`flex items-center gap-1.5 text-xs ${isLiked
+                                                                    ? "text-red-400"
+                                                                    : "text-gray-500 hover:text-red-400"
+                                                                    }`}
+                                                            >
+                                                                <Heart
+                                                                    size={15}
+                                                                    fill={isLiked ? "currentColor" : "none"}
+                                                                />
+                                                                {comment.likes?.length || 0}
+                                                            </button>
+
+                                                            <button
+                                                                onClick={() => {
+                                                                    setReplyTo(
+                                                                        replyTo === comment._id ? null : comment._id
+                                                                    );
+                                                                    setReplyText("");
+                                                                }}
+                                                                className="text-xs font-medium text-gray-400 hover:text-[#8bd19e]"
+                                                            >
+                                                                Reply
+                                                            </button>
+
+                                                        </div>
+
+                                                        {/* Reply input */}
+                                                        {replyTo === comment._id && (
+                                                            <div className="flex gap-2 mt-4">
+
+                                                                <input
+                                                                    type="text"
+                                                                    value={replyText}
+                                                                    onChange={e => setReplyText(e.target.value)}
+                                                                    placeholder={`Reply to ${commentAuthor}...`}
+                                                                    className="flex-1 min-w-0 bg-[#1e2029] border border-[#383a45] rounded-lg px-3 py-2 text-sm text-gray-200 outline-none focus:border-[#8bd19e]"
+                                                                />
+
+                                                                <button
+                                                                    onClick={() => handleReply(comment._id)}
+                                                                    disabled={!replyText.trim()}
+                                                                    className="px-3 rounded-lg bg-[#8bd19e] text-[#1e2029] disabled:opacity-40"
+                                                                >
+                                                                    <Send size={16} />
+                                                                </button>
+
+                                                            </div>
+                                                        )}
+
+                                                        {/* View replies toggle */}
+                                                        {replies.length > 0 && (
+                                                            <button
+                                                                onClick={() => toggleReplies(comment._id)}
+                                                                className="flex items-center gap-2 mt-4 text-xs font-semibold text-[#8bd19e] hover:text-[#a8e5b5] transition-colors"
+                                                            >
+                                                                {expandedReplies[comment._id] ? (
+                                                                    <>
+                                                                        <ChevronUp size={16} />
+                                                                        Hide replies
+                                                                    </>
+                                                                ) : (
+                                                                    <>
+                                                                        <ChevronDown size={16} />
+                                                                        View {replies.length} {replies.length === 1 ? "reply" : "replies"}
+                                                                    </>
+                                                                )}
+                                                            </button>
+                                                        )}
+
+                                                        {/* Expanded replies */}
+                                                        {expandedReplies[comment._id] && replies.length > 0 && (
+                                                            <div className="mt-4 ml-1 pl-4 border-l-2 border-[#383a45] space-y-5">
+
+                                                                {replies.map(reply => {
+
+                                                                    const replyAuthor = reply.author?.username || "Anonymous";
+                                                                    const replyAvatar = reply.author?.avatar;
+
+                                                                    const replyAvatarUrl = replyAvatar
+                                                                        ? replyAvatar.startsWith("http")
+                                                                            ? replyAvatar
+                                                                            : `http://localhost:3000${replyAvatar}`
+                                                                        : "";
+
+                                                                    const replyLiked = reply.likes?.some(
+                                                                        like => (like._id || like).toString() === currentUser?._id?.toString()
+                                                                    );
+
+                                                                    return (
+                                                                        <div
+                                                                            key={reply._id}
+                                                                            className="flex items-start gap-3"
+                                                                        >
+
+                                                                            {replyAvatarUrl ? (
+                                                                                <img
+                                                                                    src={replyAvatarUrl}
+                                                                                    alt={replyAuthor}
+                                                                                    className="w-8 h-8 rounded-full object-cover shrink-0"
+                                                                                />
+                                                                            ) : (
+                                                                                <div className="w-8 h-8 shrink-0 rounded-full bg-[#303b3a] flex items-center justify-center text-[#a8d9b3]">
+                                                                                    <UserRound size={15} />
+                                                                                </div>
+                                                                            )}
+
+                                                                            <div className="flex-1 min-w-0">
+
+                                                                                <div className="flex items-center gap-2 mb-1">
+                                                                                    <span className="text-gray-100 text-xs font-semibold">
+                                                                                        {replyAuthor}
+                                                                                    </span>
+
+                                                                                    <span className="text-gray-500 text-[11px]">
+                                                                                        {formatDate(reply.updatedAt)}
+                                                                                    </span>
+                                                                                </div>
+
+                                                                                <p className="text-gray-300 text-sm leading-6 break-words">
+                                                                                    {reply.comment}
+                                                                                </p>
+
+                                                                                <button
+                                                                                    onClick={() => onLikeComment(reply._id)}
+                                                                                    className={`flex items-center gap-1.5 mt-2 text-xs ${replyLiked
+                                                                                        ? "text-red-400"
+                                                                                        : "text-gray-500 hover:text-red-400"
+                                                                                        }`}
+                                                                                >
+                                                                                    <Heart
+                                                                                        size={14}
+                                                                                        fill={replyLiked ? "currentColor" : "none"}
+                                                                                    />
+                                                                                    {reply.likes?.length || 0}
+                                                                                </button>
+
+                                                                            </div>
+
+                                                                        </div>
+                                                                    );
+                                                                })}
+
+                                                            </div>
+                                                        )}
+
+                                                    </div>
                                                 </div>
-                                            )}
-
-                                            <div className="flex-1 min-w-0">
-
-                                                <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-
-                                                    <span className="text-gray-100 text-sm font-semibold">
-                                                        {commentAuthor}
-                                                    </span>
-
-                                                    <span className="text-gray-500 text-xs">
-                                                        {formatDate(comment.updatedAt)}
-                                                    </span>
-
-                                                </div>
-
-                                                <p className="text-gray-300 text-sm leading-7 break-words">
-                                                    {comment.comment || comment.text}
-                                                </p>
 
                                             </div>
-
-                                        </div>
-                                    );
-                                })
+                                        );
+                                    })
                             ) : (
                                 <div className="text-center py-12">
 
@@ -630,6 +829,8 @@ const ReadPost = ({
 
                         </div>
                     </div>
+
+
 
 
                 </section>
