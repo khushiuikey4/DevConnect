@@ -222,54 +222,42 @@ exports.postInteractionMethods = async (req, res) => {
             });
         } else if (task == 7) {
             const { postId, commentId, isLiked } = req.body;
-            if (isLiked) {
-                const updatedPost = await Post.findOneAndUpdate(
-                    {
-                        _id: postId,
-                        "comments._id": commentId
-                    },
-                    {
-                        $addToSet: {
-                            "comments.$.likes": userId
-                        }
-                    },
-                    { new: true }
-                );
 
-                if (!updatedPost) {
-                    return res.status(404).json({
-                        message: "Couldn't find the comment to like."
-                    });
+            const updateOperation = isLiked
+                ? {
+                    $addToSet: {
+                        "comments.$.likes": userId
+                    }
                 }
+                : {
+                    $pull: {
+                        "comments.$.likes": userId
+                    }
+                };
 
-                return res.status(200).json({
-                    message: "Comment liked successfully"
-                });
-            } else {
-                const updatedPost = await Post.findOneAndUpdate(
-                    {
-                        _id: postId,
-                        "comments._id": commentId
-                    },
-                    {
-                        $pull: {
-                            "comments.$.likes": userId
-                        }
-                    },
-                    { new: true }
-                );
+            const updatedPost = await Post.findOneAndUpdate(
+                {
+                    _id: postId,
+                    "comments._id": commentId
+                },
+                updateOperation,
+                { new: true }
+            );
 
-                if (!updatedPost) {
-                    return res.status(404).json({
-                        message: "Couldn't find the comment to dislike."
-                    });
-                }
-
-                return res.status(200).json({
-                    message: "Comment disliked successfully"
+            if (!updatedPost) {
+                return res.status(404).json({
+                    message: "Post or comment not found"
                 });
             }
 
+            const updatedComment = updatedPost.comments.id(commentId);
+
+            return res.status(200).json({
+                message: isLiked
+                    ? "Comment liked successfully"
+                    : "Comment disliked successfully",
+                comment: updatedComment
+            });
         }
     } catch (error) {
         return res.status(500).json({

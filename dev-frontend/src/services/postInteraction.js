@@ -139,7 +139,7 @@ export async function addCommentLikeToServer(postId, commentId, isLiked) {
             method: 'POST',
             headers: { 'Content-Type': "application/json" },
             credentials: "include",
-            body: JSON.stringify({ task: 7, commentId: commentId, postId: postId, isLiked, isLiked })
+            body: JSON.stringify({ task: 7, commentId: commentId, postId: postId, isLiked: isLiked })
         })
         const data = await response.json();
 

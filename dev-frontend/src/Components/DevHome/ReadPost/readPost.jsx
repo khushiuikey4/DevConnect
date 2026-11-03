@@ -6,7 +6,8 @@ import {
     getCommentsFromServer,
     addReplyToCommentOnServer,
     editCommentToServer,
-    deleteCommentFromServer, addCommentLikeToServer
+    deleteCommentFromServer,
+    addCommentLikeToServer
 } from "../../../services/postInteraction";
 import { getCurrentDevFromServer } from "../../../services/currentDev";
 
@@ -78,6 +79,7 @@ const ReadPost = ({
     const [expandedReplies, setExpandedReplies] = useState({});
     const [editingCommentId, setEditingCommentId] = useState(null);
     const [editedCommentText, setEditedCommentText] = useState("");
+
     const handleEditComment = async (postId, commentId) => {
         try {
             await editCommentToServer(postId, commentId, editedCommentText);
@@ -97,14 +99,47 @@ const ReadPost = ({
             console.error("Unable to delete comment:", error);
         }
     };
-    const handleCommentLike = async (postId, commentId, isLiked) => {
+
+    // Update only the likes of the selected comment.
+    const updateCommentLikes = (commentId, likes) => {
+        setComments(prev =>
+            prev.map(comment =>
+                comment._id === commentId
+                    ? { ...comment, likes }
+                    : comment
+            )
+        );
+    };
+
+    // Handle comment like/unlike.
+    const handleCommentLike = async (
+        postId,
+        commentId,
+        nextLiked,
+        previousLikes
+    ) => {
         try {
-            await addCommentLikeToServer(postId, commentId, isLiked);
+            const response = await addCommentLikeToServer(
+                postId,
+                commentId,
+                nextLiked
+            );
+
+            if (response?.error) {
+                throw new Error(response.error);
+            }
+
+            // Fetch the latest comment data from the server.
+            await fetchComments();
+
+        } catch (error) {
+            console.error("Unable to update comment like:", error);
+
+            // Restore the previous likes if the request fails.
+            updateCommentLikes(commentId, previousLikes);
         }
-        catch (error) {
-            console.error("unable to add like to this comment");
-        }
-    }
+    };
+
     // Fetch comments from server
     const fetchComments = async () => {
         if (!post?._id) return;
@@ -332,8 +367,8 @@ const ReadPost = ({
             setSubmitting(false);
         }
     };
+
     // Recursively render comments and their replies
-    const [commentLikeOverrides, setCommentLikeOverrides] = useState({});
     const renderComment = (comment) => {
         const commentAuthor = getCommentAuthor(comment);
         const commentAvatar = comment.author?.avatar;
@@ -344,10 +379,14 @@ const ReadPost = ({
                 : `http://localhost:3000${commentAvatar.startsWith("/") ? "" : "/"}${commentAvatar}`
             : "";
 
-        const isLiked = commentLikeOverrides[comment._id] ??
-            comment.likes?.some(
-                like => (like._id || like).toString() === currentUserId
-            ) ?? false;
+        // Determine whether the current user liked this comment.
+        const isLiked = comment.likes?.some(like => {
+            const likeUserId = like?._id || like;
+            return likeUserId?.toString() === currentUserId;
+        }) ?? false;
+
+        // The count comes from the same state that is updated optimistically.
+        const commentLikeCount = comment.likes?.length || 0;
 
         const replies = comment.replies || [];
 
@@ -469,14 +508,29 @@ const ReadPost = ({
 
                             <button
                                 onClick={() => {
+                                    if (!currentUserId) return;
+
+                                    const previousLikes = comment.likes || [];
                                     const nextLiked = !isLiked;
 
-                                    setCommentLikeOverrides(prev => ({
-                                        ...prev,
-                                        [comment._id]: nextLiked
-                                    }));
+                                    // Prepare the optimistic likes array.
+                                    const updatedLikes = nextLiked
+                                        ? [...previousLikes, currentUserId]
+                                        : previousLikes.filter(like => {
+                                            const likeUserId = like?._id || like;
+                                            return likeUserId?.toString() !== currentUserId;
+                                        });
 
-                                    handleCommentLike(post._id, comment._id, nextLiked);
+                                    // Immediately update the heart and count.
+                                    updateCommentLikes(comment._id, updatedLikes);
+
+                                    // Send the request and roll back if it fails.
+                                    handleCommentLike(
+                                        post._id,
+                                        comment._id,
+                                        nextLiked,
+                                        previousLikes
+                                    );
                                 }}
                                 className={`flex items-center gap-1.5 text-xs ${isLiked
                                     ? "text-red-400"
@@ -487,7 +541,7 @@ const ReadPost = ({
                                     size={15}
                                     fill={isLiked ? "currentColor" : "none"}
                                 />
-                                {comment.likes?.length || 0}
+                                {commentLikeCount}
                             </button>
 
                             <button
@@ -566,7 +620,7 @@ const ReadPost = ({
                     </div>
                 </div>
 
-            </div >
+            </div>
         );
     };
 
