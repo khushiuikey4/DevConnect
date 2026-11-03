@@ -125,7 +125,7 @@ exports.postInteractionMethods = async (req, res) => {
             // Find the parent comment
             const parentComment = post.comments.id(commentId);
 
-            if (!parentComment || parentComment.parentComment) {
+            if (!parentComment) {
                 return res.status(404).json({
                     message: "Parent comment not found"
                 });
@@ -145,7 +145,131 @@ exports.postInteractionMethods = async (req, res) => {
             return res.status(200).json({
                 message: "Reply added successfully",
                 comments: post.comments
+
             });
+        } else if (task == 5) {
+            const { postId, commentId, editedCommentText } = req.body;
+
+            const updatedPost = await Post.findOneAndUpdate(
+                {
+                    _id: postId,
+                    "comments._id": commentId
+                },
+                {
+                    $set: {
+                        "comments.$.comment": editedCommentText
+                    }
+                },
+                { new: true }
+            );
+
+            if (!updatedPost) {
+                return res.status(404).json({
+                    message: "Couldn't find the comment to update."
+                });
+            }
+
+            return res.status(200).json({
+                message: "Comment updated successfully",
+                comments: updatedPost.comments
+            });
+
+        } else if (task == 6) {
+            const { postId, commentId } = req.body;
+
+            const post = await Post.findById(postId);
+            if (!post) {
+                return res.status(404).json({ message: "Post not found" });
+            }
+
+            const target = post.comments.id(commentId);
+            if (!target) {
+                return res.status(404).json({ message: "Couldn't find the comment to delete." });
+            }
+
+            // only the comment's own author can delete it
+            if (target.author.toString() !== userId.toString()) {
+                return res.status(403).json({ message: "You can only delete your own comments." });
+            }
+
+            // collect the comment and every reply below it, at any depth
+            const doomed = new Set([commentId.toString()]);
+            let found = true;
+            while (found) {
+                found = false;
+                post.comments.forEach((c) => {
+                    const parent = c.parentComment?.toString();
+                    if (parent && doomed.has(parent) && !doomed.has(c._id.toString())) {
+                        doomed.add(c._id.toString());
+                        found = true;
+                    }
+                });
+            }
+
+            const idsToDelete = post.comments
+                .filter((c) => doomed.has(c._id.toString()))
+                .map((c) => c._id);
+
+            const updatedPost = await Post.findByIdAndUpdate(
+                postId,
+                { $pull: { comments: { _id: { $in: idsToDelete } } } },
+                { new: true }
+            ).populate("comments.author", "username avatar");
+
+            return res.status(200).json({
+                message: "Comment deleted successfully",
+                comments: updatedPost.comments
+            });
+        } else if (task == 7) {
+            const { postId, commentId, isLiked } = req.body;
+            if (isLiked) {
+                const updatedPost = await Post.findOneAndUpdate(
+                    {
+                        _id: postId,
+                        "comments._id": commentId
+                    },
+                    {
+                        $addToSet: {
+                            "comments.$.likes": userId
+                        }
+                    },
+                    { new: true }
+                );
+
+                if (!updatedPost) {
+                    return res.status(404).json({
+                        message: "Couldn't find the comment to like."
+                    });
+                }
+
+                return res.status(200).json({
+                    message: "Comment liked successfully"
+                });
+            } else {
+                const updatedPost = await Post.findOneAndUpdate(
+                    {
+                        _id: postId,
+                        "comments._id": commentId
+                    },
+                    {
+                        $pull: {
+                            "comments.$.likes": userId
+                        }
+                    },
+                    { new: true }
+                );
+
+                if (!updatedPost) {
+                    return res.status(404).json({
+                        message: "Couldn't find the comment to dislike."
+                    });
+                }
+
+                return res.status(200).json({
+                    message: "Comment disliked successfully"
+                });
+            }
+
         }
     } catch (error) {
         return res.status(500).json({

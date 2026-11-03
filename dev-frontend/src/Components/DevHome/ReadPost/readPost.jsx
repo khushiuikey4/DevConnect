@@ -1,9 +1,19 @@
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { addCommentToServer, getCommentsFromServer, addReplyToCommentOnServer } from "../../../services/postInteraction"
-import { getCurrentDevFromServer } from "../../../services/currentDev";
 import {
+    addCommentToServer,
+    getCommentsFromServer,
+    addReplyToCommentOnServer,
+    editCommentToServer,
+    deleteCommentFromServer, addCommentLikeToServer
+} from "../../../services/postInteraction";
+import { getCurrentDevFromServer } from "../../../services/currentDev";
+
+import {
+    MoreVertical,
+    Pencil,
+    Trash2,
     Heart,
     MessageCircle,
     Share2,
@@ -17,6 +27,10 @@ import {
     Clock3,
     Code2,
     Sparkles,
+    ChevronUp,
+    ChevronDown,
+    Check,
+    X
 } from "lucide-react";
 
 // Stable default array
@@ -27,16 +41,19 @@ const ReadPost = ({
     onLike,
     onAddComment,
     onSave,
+    onLikeComment,
 }) => {
     const navigate = useNavigate();
     const location = useLocation();
+    const editTextareaRef = useRef(null);
+
     const [currentUser, setCurrentUser] = useState(null);
 
     useEffect(() => {
         const fetchCurrentUser = async () => {
             try {
                 const user = await getCurrentDevFromServer();
-                setCurrentUser(user);
+                setCurrentUser(user?.currentDev);
             } catch (error) {
                 console.error("Unable to fetch current user:", error);
             }
@@ -53,55 +70,62 @@ const ReadPost = ({
     const [comments, setComments] = useState([]);
     const [newComment, setNewComment] = useState("");
     const [submitting, setSubmitting] = useState(false);
-
-
+    const [activeMenu, setActiveMenu] = useState(null);
     const currentUserId = currentUser?._id?.toString();
 
     const [replyTo, setReplyTo] = useState(null);
     const [replyText, setReplyText] = useState("");
     const [expandedReplies, setExpandedReplies] = useState({});
-
-    const handleReply = async (commentId) => {
-        if (!replyText.trim()) return;
-
-        // onAddReply(commentId, replyText);
-        const response = await addReplyToCommentOnServer(currentUserId, post._id, commentId, replyText)
-        setReplyText("");
-        setReplyTo(null);
-
-        // Expand replies after submitting
-        setExpandedReplies(prev => ({
-            ...prev,
-            [commentId]: true
-        }));
+    const [editingCommentId, setEditingCommentId] = useState(null);
+    const [editedCommentText, setEditedCommentText] = useState("");
+    const handleEditComment = async (postId, commentId) => {
+        try {
+            await editCommentToServer(postId, commentId, editedCommentText);
+            setEditingCommentId(null);
+            setEditedCommentText("");
+            await fetchComments();
+        } catch (error) {
+            console.error("Unable to edit comment:", error);
+        }
     };
 
-    const toggleReplies = (commentId) => {
-        setExpandedReplies(prev => ({
-            ...prev,
-            [commentId]: !prev[commentId]
-        }));
+    const handleDeleteComment = async (postId, commentId) => {
+        try {
+            await deleteCommentFromServer(postId, commentId);
+            await fetchComments();
+        } catch (error) {
+            console.error("Unable to delete comment:", error);
+        }
     };
-
-
-    // Synchronize post interaction states
-    useEffect(() => {
+    const handleCommentLike = async (postId, commentId, isLiked) => {
+        try {
+            await addCommentLikeToServer(postId, commentId, isLiked);
+        }
+        catch (error) {
+            console.error("unable to add like to this comment");
+        }
+    }
+    // Fetch comments from server
+    const fetchComments = async () => {
         if (!post?._id) return;
 
-        const fetchComments = async () => {
-            try {
-                const response = await getCommentsFromServer(post._id);
+        try {
+            const response = await getCommentsFromServer(post._id);
 
-                console.log("Comments API response:", response);
+            console.log("Comments API response:", response);
 
-                setComments(response.comments || []);
-            } catch (error) {
-                console.error("Unable to fetch comments:", error);
-            }
-        };
+            setComments(response.comments || []);
+        } catch (error) {
+            console.error("Unable to fetch comments:", error);
+        }
+    };
 
+    // Fetch comments when post changes
+    useEffect(() => {
         fetchComments();
     }, [post?._id]);
+
+    // Fetch current post interaction states
     useEffect(() => {
         if (!post) return;
 
@@ -119,14 +143,65 @@ const ReadPost = ({
         setSaved(isSaved);
     }, [post, currentUserId, isSaved]);
 
-    // Use content as the dependency instead of array reference.
-    // This prevents repeated updates when the parent creates a new
-    // array containing the same comments on every render.
-    // const initialCommentsKey = JSON.stringify(initialComments);
+    // Submit a reply
+    const handleReply = async (commentId) => {
+        const content = replyText.trim();
 
-    // useEffect(() => {
-    //     setComments(initialComments);
-    // }, [initialCommentsKey]);
+        if (!content) return;
+
+        try {
+            await addReplyToCommentOnServer(
+                currentUserId,
+                post._id,
+                commentId,
+                content
+            );
+
+            setReplyText("");
+            setReplyTo(null);
+
+            // Expand replies after submitting
+            setExpandedReplies(prev => ({
+                ...prev,
+                [commentId]: true
+            }));
+
+            // Fetch updated comments, including the new reply
+            await fetchComments();
+
+        } catch (error) {
+            console.error("Unable to add reply:", error);
+        }
+    };
+
+    // Expand/collapse replies
+    const toggleReplies = (commentId) => {
+        setExpandedReplies(prev => ({
+            ...prev,
+            [commentId]: !prev[commentId]
+        }));
+    };
+
+    // Convert flat comments array into a nested comment tree
+    const buildCommentTree = (comments, parentId = null) => {
+        return comments
+            .filter(comment => {
+                const commentParentId = comment.parentComment
+                    ? comment.parentComment.toString()
+                    : null;
+
+                return commentParentId === parentId;
+            })
+            .map(comment => ({
+                ...comment,
+                replies: buildCommentTree(
+                    comments,
+                    comment._id.toString()
+                )
+            }));
+    };
+
+    const arrangedComments = buildCommentTree(comments);
 
     if (!post) {
         return (
@@ -246,10 +321,9 @@ const ReadPost = ({
         try {
             await addCommentToServer(post._id, content);
 
-            // Fetch the updated comments
-            const response = await getCommentsFromServer(post._id);
+            // Fetch updated comments
+            await fetchComments();
 
-            setComments(response.comments || []);
             setNewComment("");
 
         } catch (error) {
@@ -257,6 +331,243 @@ const ReadPost = ({
         } finally {
             setSubmitting(false);
         }
+    };
+    // Recursively render comments and their replies
+    const [commentLikeOverrides, setCommentLikeOverrides] = useState({});
+    const renderComment = (comment) => {
+        const commentAuthor = getCommentAuthor(comment);
+        const commentAvatar = comment.author?.avatar;
+
+        const commentAvatarUrl = commentAvatar
+            ? commentAvatar.startsWith("http")
+                ? commentAvatar
+                : `http://localhost:3000${commentAvatar.startsWith("/") ? "" : "/"}${commentAvatar}`
+            : "";
+
+        const isLiked = commentLikeOverrides[comment._id] ??
+            comment.likes?.some(
+                like => (like._id || like).toString() === currentUserId
+            ) ?? false;
+
+        const replies = comment.replies || [];
+
+        return (
+            <div key={comment._id}>
+
+                {/* Main Comment */}
+                <div className="flex items-start gap-3">
+
+                    {commentAvatarUrl ? (
+                        <img
+                            src={commentAvatarUrl}
+                            alt={commentAuthor}
+                            className="w-10 h-10 rounded-full object-cover shrink-0"
+                        />
+                    ) : (
+                        <div className="w-10 h-10 shrink-0 rounded-full bg-[#303b3a] flex items-center justify-center text-[#a8d9b3]">
+                            <UserRound size={18} />
+                        </div>
+                    )}
+
+                    <div className="flex-1 min-w-0">
+
+                        <div className="flex items-center gap-2 mb-1">
+                            <span className="text-gray-100 text-sm font-semibold">
+                                {commentAuthor}
+                            </span>
+                            <span className="text-gray-500 text-xs">
+                                {formatDate(comment.createdAt)}
+                            </span>
+                            <div className="relative ml-auto">
+                                <button
+                                    onClick={() =>
+                                        setActiveMenu(
+                                            activeMenu === comment._id ? null : comment._id
+                                        )
+                                    }
+                                    className="p-1.5 text-gray-500 hover:text-white rounded-lg hover:bg-[#30323d]"
+                                >
+                                    <MoreVertical size={18} />
+                                </button>
+
+                                {activeMenu === comment._id && (
+                                    <div className="absolute right-0 top-8 z-20 w-36 bg-[#30323d] border border-[#444651] rounded-lg shadow-xl py-1">
+
+                                        <button
+                                            onClick={() => {
+                                                setEditingCommentId(comment._id);
+                                                setEditedCommentText(comment.comment);
+                                                setActiveMenu(null);
+                                                // handleEditComment(currentUser._id, comment)
+                                            }}
+                                            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-300 hover:bg-[#41434e]"
+                                        >
+                                            <Pencil size={14} />
+                                            Edit
+                                        </button>
+
+                                        <button
+                                            onClick={() => {
+                                                setActiveMenu(null);
+                                                handleDeleteComment(post._id, comment._id);
+                                                // handleDeleteComment(comment._id)
+                                            }}
+                                            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-400 hover:bg-[#41434e]"
+                                        >
+                                            <Trash2 size={14} />
+                                            Delete
+                                        </button>
+
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {editingCommentId === comment._id ? (
+                            <div className="flex items-center gap-2 mt-2">
+                                <textarea
+                                    ref={editTextareaRef}
+                                    value={editedCommentText}
+                                    onChange={(e) => setEditedCommentText(e.target.value)}
+                                    className="flex-1 bg-[#1e2029] border border-[#383a45] rounded-lg p-3 text-sm text-gray-200 outline-none focus:border-[#8bd19e] resize-none"
+                                    rows={2}
+                                    autoFocus
+                                    onFocus={(e) => {
+                                        const length = e.target.value.length;
+                                        e.target.setSelectionRange(length, length);
+                                    }}
+                                />
+
+                                <button
+                                    onClick={() => handleEditComment(post._id, comment._id)}
+                                    disabled={!editedCommentText.trim()}
+                                    className="p-2 text-[#8bd19e] hover:bg-[#303b3a] rounded-lg disabled:opacity-40"
+                                    title="Save changes"
+                                >
+                                    <Check size={19} />
+                                </button>
+
+                                <button
+                                    onClick={() => {
+                                        setEditingCommentId(null);
+                                        setEditedCommentText("");
+                                    }}
+                                    className="p-2 text-gray-400 hover:bg-[#30323d] rounded-lg"
+                                    title="Cancel"
+                                >
+                                    <X size={19} />
+                                </button>
+                            </div>
+                        ) : (
+                            <p className="text-gray-300 text-sm leading-7 break-words">
+                                {comment.comment}
+                            </p>
+                        )}
+
+                        {/* Actions */}
+                        <div className="flex items-center gap-5 mt-2">
+
+                            <button
+                                onClick={() => {
+                                    const nextLiked = !isLiked;
+
+                                    setCommentLikeOverrides(prev => ({
+                                        ...prev,
+                                        [comment._id]: nextLiked
+                                    }));
+
+                                    handleCommentLike(post._id, comment._id, nextLiked);
+                                }}
+                                className={`flex items-center gap-1.5 text-xs ${isLiked
+                                    ? "text-red-400"
+                                    : "text-gray-500 hover:text-red-400"
+                                    }`}
+                            >
+                                <Heart
+                                    size={15}
+                                    fill={isLiked ? "currentColor" : "none"}
+                                />
+                                {comment.likes?.length || 0}
+                            </button>
+
+                            <button
+                                onClick={() => {
+                                    setReplyTo(
+                                        replyTo === comment._id
+                                            ? null
+                                            : comment._id
+                                    );
+                                    setReplyText("");
+                                }}
+                                className="text-xs font-medium text-gray-400 hover:text-[#8bd19e]"
+                            >
+                                <span className="flex items-center gap-1">
+                                    <Reply size={14} />
+                                    Reply
+                                </span>
+                            </button>
+
+                        </div>
+
+                        {/* Reply Input */}
+                        {replyTo === comment._id && (
+                            <div className="flex gap-2 mt-4">
+
+                                <input
+                                    type="text"
+                                    value={replyText}
+                                    onChange={e => setReplyText(e.target.value)}
+                                    placeholder={`Reply to ${commentAuthor}...`}
+                                    className="flex-1 min-w-0 bg-[#1e2029] border border-[#383a45] rounded-lg px-3 py-2 text-sm text-gray-200 outline-none focus:border-[#8bd19e]"
+                                />
+
+                                <button
+                                    onClick={() => handleReply(comment._id)}
+                                    disabled={!replyText.trim()}
+                                    className="px-3 rounded-lg bg-[#8bd19e] text-[#1e2029] disabled:opacity-40"
+                                >
+                                    <Send size={16} />
+                                </button>
+
+                            </div>
+                        )}
+
+                        {/* View Replies Toggle */}
+                        {replies.length > 0 && (
+                            <button
+                                onClick={() => toggleReplies(comment._id)}
+                                className="flex items-center gap-2 mt-4 text-xs font-semibold text-[#8bd19e] hover:text-[#a8e5b5] transition-colors"
+                            >
+                                {expandedReplies[comment._id] ? (
+                                    <>
+                                        <ChevronUp size={16} />
+                                        Hide replies
+                                    </>
+                                ) : (
+                                    <>
+                                        <ChevronDown size={16} />
+                                        View {replies.length} {replies.length === 1 ? "reply" : "replies"}
+                                    </>
+                                )}
+                            </button>
+                        )}
+
+                        {/* Recursively Render Replies */}
+                        {expandedReplies[comment._id] && replies.length > 0 && (
+                            <div className="mt-4 ml-1 pl-4 border-l-2 border-[#383a45] space-y-5">
+
+                                {replies.map(reply =>
+                                    renderComment(reply)
+                                )}
+
+                            </div>
+                        )}
+
+                    </div>
+                </div>
+
+            </div >
+        );
     };
 
     return (
@@ -561,9 +872,6 @@ const ReadPost = ({
                         <div className="flex justify-end mt-4">
 
                             <button
-                                // onClick={() => {
-                                //     addCommentToServer(post._id, newComment,)
-                                // }}
                                 type="submit"
                                 disabled={!newComment.trim() || submitting}
                                 className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-[#8bd19e] text-[#17251c] text-sm font-semibold hover:bg-[#9be0ad] disabled:opacity-40 disabled:cursor-not-allowed transition"
@@ -577,9 +885,6 @@ const ReadPost = ({
                     </form>
 
                     {/* Existing Comments */}
-
-                    {/* Existing Comments */}
-
                     <div className="w-full bg-[#242630] border border-[#383a45] rounded-xl p-5 sm:p-7">
 
                         <div className="flex items-center justify-between mb-6">
@@ -594,218 +899,10 @@ const ReadPost = ({
 
                         <div className="space-y-7">
 
-                            {comments.filter(comment => !comment.parentComment).length > 0 ? (
-                                comments
-                                    .filter(comment => !comment.parentComment)
-                                    .map(comment => {
-
-                                        const commentAuthor = comment.author?.username || "Anonymous";
-                                        const commentAvatar = comment.author?.avatar;
-
-                                        const commentAvatarUrl = commentAvatar
-                                            ? commentAvatar.startsWith("http")
-                                                ? commentAvatar
-                                                : `http://localhost:3000${commentAvatar}`
-                                            : "";
-
-                                        const isLiked = comment.likes?.some(
-                                            like => (like._id || like).toString() === currentUser?._id?.toString()
-                                        );
-
-                                        const replies = comments.filter(
-                                            reply => reply.parentComment?.toString() === comment._id.toString()
-                                        );
-
-                                        return (
-                                            <div key={comment._id}>
-
-                                                {/* Main comment */}
-                                                <div className="flex items-start gap-3">
-
-                                                    {commentAvatarUrl ? (
-                                                        <img
-                                                            src={commentAvatarUrl}
-                                                            alt={commentAuthor}
-                                                            className="w-10 h-10 rounded-full object-cover shrink-0"
-                                                        />
-                                                    ) : (
-                                                        <div className="w-10 h-10 shrink-0 rounded-full bg-[#303b3a] flex items-center justify-center text-[#a8d9b3]">
-                                                            <UserRound size={18} />
-                                                        </div>
-                                                    )}
-
-                                                    <div className="flex-1 min-w-0">
-
-                                                        <div className="flex items-center gap-2 mb-1">
-                                                            <span className="text-gray-100 text-sm font-semibold">
-                                                                {commentAuthor}
-                                                            </span>
-
-                                                            <span className="text-gray-500 text-xs">
-                                                                {formatDate(comment.updatedAt)}
-                                                            </span>
-                                                        </div>
-
-                                                        <p className="text-gray-300 text-sm leading-7 break-words">
-                                                            {comment.comment}
-                                                        </p>
-
-                                                        {/* Actions */}
-                                                        <div className="flex items-center gap-5 mt-2">
-
-                                                            <button
-                                                                onClick={() => onLikeComment(comment._id)}
-                                                                className={`flex items-center gap-1.5 text-xs ${isLiked
-                                                                    ? "text-red-400"
-                                                                    : "text-gray-500 hover:text-red-400"
-                                                                    }`}
-                                                            >
-                                                                <Heart
-                                                                    size={15}
-                                                                    fill={isLiked ? "currentColor" : "none"}
-                                                                />
-                                                                {comment.likes?.length || 0}
-                                                            </button>
-
-                                                            <button
-                                                                onClick={() => {
-                                                                    setReplyTo(
-                                                                        replyTo === comment._id ? null : comment._id
-                                                                    );
-                                                                    setReplyText("");
-                                                                }}
-                                                                className="text-xs font-medium text-gray-400 hover:text-[#8bd19e]"
-                                                            >
-                                                                Reply
-                                                            </button>
-
-                                                        </div>
-
-                                                        {/* Reply input */}
-                                                        {replyTo === comment._id && (
-                                                            <div className="flex gap-2 mt-4">
-
-                                                                <input
-                                                                    type="text"
-                                                                    value={replyText}
-                                                                    onChange={e => setReplyText(e.target.value)}
-                                                                    placeholder={`Reply to ${commentAuthor}...`}
-                                                                    className="flex-1 min-w-0 bg-[#1e2029] border border-[#383a45] rounded-lg px-3 py-2 text-sm text-gray-200 outline-none focus:border-[#8bd19e]"
-                                                                />
-
-                                                                <button
-                                                                    onClick={() => handleReply(comment._id)}
-                                                                    disabled={!replyText.trim()}
-                                                                    className="px-3 rounded-lg bg-[#8bd19e] text-[#1e2029] disabled:opacity-40"
-                                                                >
-                                                                    <Send size={16} />
-                                                                </button>
-
-                                                            </div>
-                                                        )}
-
-                                                        {/* View replies toggle */}
-                                                        {replies.length > 0 && (
-                                                            <button
-                                                                onClick={() => toggleReplies(comment._id)}
-                                                                className="flex items-center gap-2 mt-4 text-xs font-semibold text-[#8bd19e] hover:text-[#a8e5b5] transition-colors"
-                                                            >
-                                                                {expandedReplies[comment._id] ? (
-                                                                    <>
-                                                                        <ChevronUp size={16} />
-                                                                        Hide replies
-                                                                    </>
-                                                                ) : (
-                                                                    <>
-                                                                        <ChevronDown size={16} />
-                                                                        View {replies.length} {replies.length === 1 ? "reply" : "replies"}
-                                                                    </>
-                                                                )}
-                                                            </button>
-                                                        )}
-
-                                                        {/* Expanded replies */}
-                                                        {expandedReplies[comment._id] && replies.length > 0 && (
-                                                            <div className="mt-4 ml-1 pl-4 border-l-2 border-[#383a45] space-y-5">
-
-                                                                {replies.map(reply => {
-
-                                                                    const replyAuthor = reply.author?.username || "Anonymous";
-                                                                    const replyAvatar = reply.author?.avatar;
-
-                                                                    const replyAvatarUrl = replyAvatar
-                                                                        ? replyAvatar.startsWith("http")
-                                                                            ? replyAvatar
-                                                                            : `http://localhost:3000${replyAvatar}`
-                                                                        : "";
-
-                                                                    const replyLiked = reply.likes?.some(
-                                                                        like => (like._id || like).toString() === currentUser?._id?.toString()
-                                                                    );
-
-                                                                    return (
-                                                                        <div
-                                                                            key={reply._id}
-                                                                            className="flex items-start gap-3"
-                                                                        >
-
-                                                                            {replyAvatarUrl ? (
-                                                                                <img
-                                                                                    src={replyAvatarUrl}
-                                                                                    alt={replyAuthor}
-                                                                                    className="w-8 h-8 rounded-full object-cover shrink-0"
-                                                                                />
-                                                                            ) : (
-                                                                                <div className="w-8 h-8 shrink-0 rounded-full bg-[#303b3a] flex items-center justify-center text-[#a8d9b3]">
-                                                                                    <UserRound size={15} />
-                                                                                </div>
-                                                                            )}
-
-                                                                            <div className="flex-1 min-w-0">
-
-                                                                                <div className="flex items-center gap-2 mb-1">
-                                                                                    <span className="text-gray-100 text-xs font-semibold">
-                                                                                        {replyAuthor}
-                                                                                    </span>
-
-                                                                                    <span className="text-gray-500 text-[11px]">
-                                                                                        {formatDate(reply.updatedAt)}
-                                                                                    </span>
-                                                                                </div>
-
-                                                                                <p className="text-gray-300 text-sm leading-6 break-words">
-                                                                                    {reply.comment}
-                                                                                </p>
-
-                                                                                <button
-                                                                                    onClick={() => onLikeComment(reply._id)}
-                                                                                    className={`flex items-center gap-1.5 mt-2 text-xs ${replyLiked
-                                                                                        ? "text-red-400"
-                                                                                        : "text-gray-500 hover:text-red-400"
-                                                                                        }`}
-                                                                                >
-                                                                                    <Heart
-                                                                                        size={14}
-                                                                                        fill={replyLiked ? "currentColor" : "none"}
-                                                                                    />
-                                                                                    {reply.likes?.length || 0}
-                                                                                </button>
-
-                                                                            </div>
-
-                                                                        </div>
-                                                                    );
-                                                                })}
-
-                                                            </div>
-                                                        )}
-
-                                                    </div>
-                                                </div>
-
-                                            </div>
-                                        );
-                                    })
+                            {arrangedComments.length > 0 ? (
+                                arrangedComments.map(comment =>
+                                    renderComment(comment)
+                                )
                             ) : (
                                 <div className="text-center py-12">
 
@@ -829,9 +926,6 @@ const ReadPost = ({
 
                         </div>
                     </div>
-
-
-
 
                 </section>
 
