@@ -1,6 +1,6 @@
-
 import { useState, useMemo, useEffect } from "react";
 import { getMyPostsFromServer } from "../../services/myPosts";
+import { searchFromServer } from "../../services/search";
 
 const FILTERS = [
   { key: "all", label: "all" },
@@ -139,20 +139,52 @@ export default function DevMyPosts({
   onDelete,
   onContinueWriting,
 }) {
-  const [filter, setFilter] = useState("all");
+  const [filter, setFilter] = useState("latest");
   const [posts, setPosts] = useState([]);
+  const [search, setSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const fetchMyPosts = async () => {
+    try {
+      const result = await getMyPostsFromServer();
+      console.log("My posts API response:", result);
+      setPosts(result.posts || []);
+    } catch (error) {
+      console.error("Failed to fetch my posts:", error);
+    }
+  };
+  const getLatestPosts = (arr) => {
+    const latestSorted = [...arr].sort(
+      (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+    )
+    return latestSorted;
+  }
+  const getOldestPosts = (arr) => {
+    const oldestSorted = [...arr].sort(
+      (a, b) => new Date(a.createdAt) - new Date(b.createdAt)
+    )
+    return oldestSorted;
+  }
+  const handleSearch = async () => {
+    if (searchQuery == "") {
+      fetchMyPosts();
+    } else {
+      const response = await searchFromServer(searchQuery);
+      const matchedPosts = response?.posts || [];
+      if (filter == 'latest') {
+        setPosts(getLatestPosts(matchedPosts));
+      }
+      else {
+        setPosts(getOldestPosts(matchedPosts))
+      }
+    }
+  }
+  const filteredPosts = useMemo(() => {
+    return filter === "latest"
+      ? getLatestPosts(posts)
+      : getOldestPosts(posts);
+  }, [posts, filter]);
 
   useEffect(() => {
-    const fetchMyPosts = async () => {
-      try {
-        const result = await getMyPostsFromServer();
-        console.log("My posts API response:", result);
-        setPosts(result.posts || []);
-      } catch (error) {
-        console.error("Failed to fetch my posts:", error);
-      }
-    };
-
     fetchMyPosts();
   }, []);
 
@@ -182,18 +214,29 @@ export default function DevMyPosts({
     [posts]
   );
 
-  const filteredPosts = useMemo(
-    () =>
-      filter === "all"
-        ? posts
-        : posts.filter((post) => post.status === filter),
-    [posts, filter]
-  );
 
   return (
     <div className="min-h-screen bg-[#1e1f26] text-[#e8e9ee]">
       <main className="max-w-[1080px] mx-auto px-7 py-9 pb-20">
         <div className="font-mono text-[0.82rem] text-[#5a5c6b] mb-1.5">
+          <div className="flex gap-3 mb-7">
+            <input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              type="text"
+              placeholder="Search your posts..."
+              className="flex-1 min-w-0 bg-[#23252e] border border-[#383a46] rounded-lg px-4 py-3 text-sm text-[#e8e9ee] placeholder:text-[#5a5c6b] outline-none focus:border-[#8fd19e] transition-colors"
+            />
+
+            <button
+              className="px-6 py-3 bg-[#8fd19e] text-[#1e1f26] rounded-lg text-sm font-mono font-semibold hover:bg-[#a3dfb0] "
+              onClick={() => {
+                handleSearch();
+              }}
+            >
+              Search
+            </button>
+          </div>
           // <span className="text-[#8fd19e]">
             your published work
           </span>
@@ -245,7 +288,26 @@ export default function DevMyPosts({
             </button>
           ))}
         </div>
+        <div className="flex items-center justify-between mb-6">
+          <span className="font-mono text-[0.8rem] text-[#5a5c6b]">
+            sort by
+          </span>
 
+          <div className="flex gap-2">
+            {["latest", "oldest"].map((item) => (
+              <button
+                key={item}
+                onClick={() => setFilter(item)}
+                className={`font-mono text-[0.76rem] px-4 py-2 rounded-md border transition-colors ${filter === item
+                  ? "text-[#8fd19e] border-[#8fd19e] bg-[#8fd19e1a]"
+                  : "text-[#5a5c6b] border-[#383a46] hover:text-[#e8e9ee]"
+                  }`}
+              >
+                {item}
+              </button>
+            ))}
+          </div>
+        </div>
         {filteredPosts.length === 0 ? (
           <div className="text-center py-16 px-5 border border-dashed border-[#383a46] rounded-[10px] text-[#5a5c6b]">
             <div className="font-mono text-[0.9rem] text-[#8fd19e] mb-2.5">
