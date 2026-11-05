@@ -4,14 +4,15 @@ exports.postInteractionMethods = async (req, res) => {
     try {
         const userId = req.session?.dev?._id;
         const task = req.body.task;
-        if (!userId) {
-            return res.status(401).json({
-                message: "Please log in first"
-            });
-        }
+
 
         if (task == 0) {
             // Like the post
+            if (!userId) {
+                return res.status(401).json({
+                    message: "Please log in first"
+                });
+            }
             const { postId, liked } = req.body;
             let updatedPost;
             if (liked) {
@@ -40,6 +41,11 @@ exports.postInteractionMethods = async (req, res) => {
             });
         } else if (task == 1) {
             //saved the post
+            if (!userId) {
+                return res.status(401).json({
+                    message: "Please log in first"
+                });
+            }
             let updatedPost;
             const { postId, saved } = req.body;
             if (saved) {
@@ -61,6 +67,11 @@ exports.postInteractionMethods = async (req, res) => {
             })
         } else if (task == 2) {
             const { postId, comment } = req.body;
+            if (!userId) {
+                return res.status(401).json({
+                    message: "Please log in first"
+                });
+            }
 
             if (!comment?.trim()) {
                 return res.status(400).json({
@@ -109,6 +120,11 @@ exports.postInteractionMethods = async (req, res) => {
             });
         } else if (task == 4) {
             const { postId, commentId, replyText } = req.body;
+            if (!userId) {
+                return res.status(401).json({
+                    message: "Please log in first"
+                });
+            }
 
             if (!replyText?.trim()) {
                 return res.status(400).json({
@@ -151,7 +167,11 @@ exports.postInteractionMethods = async (req, res) => {
             });
         } else if (task == 5) {
             const { postId, commentId, editedCommentText } = req.body;
-
+            if (!userId) {
+                return res.status(401).json({
+                    message: "Please log in first"
+                });
+            }
             const updatedPost = await Post.findOneAndUpdate(
                 {
                     _id: postId,
@@ -178,10 +198,14 @@ exports.postInteractionMethods = async (req, res) => {
 
         } else if (task == 6) {
             const { postId, commentId } = req.body;
-
+            if (!userId) {
+                return res.status(401).json({
+                    message: "Please log in first"
+                });
+            }
             const post = await Post.findById(postId);
             if (!post) {
-                return res.status(404).json({ message: "Post not found" });
+                return res.status(404).json({ message: "post not found" });
             }
 
             const target = post.comments.id(commentId);
@@ -224,7 +248,11 @@ exports.postInteractionMethods = async (req, res) => {
             });
         } else if (task == 7) {
             const { postId, commentId, isLiked } = req.body;
-
+            if (!userId) {
+                return res.status(401).json({
+                    message: "Please log in first"
+                });
+            }
             const updateOperation = isLiked
                 ? {
                     $addToSet: {
@@ -262,7 +290,9 @@ exports.postInteractionMethods = async (req, res) => {
             });
         } else if (task == 8) {
             const { postId } = req.body;
-            const freshPost = Post.findById(postId);
+            const freshPost = await Post.findById(postId)
+                .populate("author", "username avatar");
+
             if (!freshPost) {
                 return res.status(404).json({
                     message: "Fresh post not found"
@@ -270,7 +300,7 @@ exports.postInteractionMethods = async (req, res) => {
             }
             return res.status(200).json({
                 message: "FreshPost fetched successfully",
-                freshPost: freshPost
+                post: freshPost
             })
         }
     } catch (error) {

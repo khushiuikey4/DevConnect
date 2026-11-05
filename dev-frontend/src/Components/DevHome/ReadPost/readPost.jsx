@@ -1,6 +1,5 @@
 
 import { useEffect, useState, useRef } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
 import {
     addCommentToServer,
     getCommentsFromServer,
@@ -12,6 +11,8 @@ import {
     addPostLikeToServer, getPostFromServer
 } from "../../../services/postInteraction";
 import { getCurrentDevFromServer } from "../../../services/currentDev";
+import { useNavigate, useLocation, useParams } from "react-router-dom";
+import { FaWhatsapp, FaFacebookF, FaXTwitter, FaTelegram, FaLinkedinIn } from "react-icons/fa6";
 
 import {
     MoreVertical,
@@ -66,13 +67,15 @@ const ReadPost = ({
     }, []);
 
     const routePost = location.state?.post;
+    const { id } = useParams();
+    const postId = routePost?._id || id;
     const [freshPost, setFreshPost] = useState(null);
     const post = freshPost || routePost;
     useEffect(() => {
-        if (!routePost?._id) return;
+        if (!postId) return;
         const fetchFreshPost = async () => {
             try {
-                const response = await getPostFromServer(routePost._id);
+                const response = await getPostFromServer(postId);
                 if (response?.error) {
                     throw new Error(response.Error);
                 }
@@ -98,7 +101,29 @@ const ReadPost = ({
     const [editingCommentId, setEditingCommentId] = useState(null);
     const [editedCommentText, setEditedCommentText] = useState("");
     const [saved, setSaved] = useState(false);
-
+    const [showShare, setShowShare] = useState(false);
+    const [copied, setCopied] = useState(false);
+    const [isPostLoading, setIsPostLoading] = useState(true);
+    useEffect(() => {
+        if (!postId) {
+            setIsPostLoading(false);
+            return;
+        }
+        const fetchFreshPost = async () => {
+            try {
+                const response = await getPostFromServer(postId);
+                if (response?.error) {
+                    throw new Error(response.error);
+                }
+                setFreshPost(response.post)
+            } catch (error) {
+                console.error("Unable to fetch latest post", error)
+            } finally {
+                setIsPostLoading(false);
+            }
+        }
+        fetchFreshPost();
+    }, [postId])
     useEffect(() => {
         if (!currentUser?._id || !post?._id) return;
 
@@ -152,6 +177,7 @@ const ReadPost = ({
         nextLiked,
         previousLikes
     ) => {
+        if (!requireLogin()) return;
         try {
             const response = await addCommentLikeToServer(
                 postId,
@@ -175,8 +201,9 @@ const ReadPost = ({
     };
 
     // Fetch comments from server
+
     const fetchComments = async () => {
-        if (!post?._id) return;
+        if (!postId) return;
 
         try {
             const response = await getCommentsFromServer(post._id);
@@ -192,9 +219,10 @@ const ReadPost = ({
     // Fetch comments when post changes
     useEffect(() => {
         fetchComments();
-    }, [post?._id]);
+    }, [postId]);
 
     // Fetch current post interaction states
+    // loading screen: must be below ALL useState / useEffect calls
     useEffect(() => {
         if (!post) return;
 
@@ -220,6 +248,7 @@ const ReadPost = ({
 
     // Submit a reply
     const handleReply = async (commentId) => {
+        if (!requireLogin()) return;
         const content = replyText.trim();
 
         if (!content) return;
@@ -275,6 +304,16 @@ const ReadPost = ({
                 )
             }));
     };
+    if (!post && isPostLoading) {
+        return (
+            <div className="min-h-screen w-full bg-[#1e1f26] text-gray-400 flex items-center justify-center">
+                <div className="text-center">
+                    <Code2 size={42} className="mx-auto mb-4 text-[#8bd19e] animate-pulse" />
+                    <p className="text-sm">Loading post...</p>
+                </div>
+            </div>
+        );
+    }
 
     const arrangedComments = buildCommentTree(comments);
 
@@ -334,8 +373,13 @@ const ReadPost = ({
             "Anonymous"
         );
     };
-
+    const requireLogin = () => {
+        if (currentUserId) return true;
+        navigate("/authenticationPage");
+        return false;
+    };
     const handleLike = async () => {
+        if (!requireLogin()) return;
         const nextLiked = !liked;
 
         setLiked(nextLiked);
@@ -351,6 +395,7 @@ const ReadPost = ({
     };
 
     const handleSave = async () => {
+        if (!requireLogin()) return;
         const nextSaved = !saved;
         setSaved(nextSaved);
 
@@ -363,29 +408,74 @@ const ReadPost = ({
     };
 
     const handleShare = async () => {
-        const postUrl = window.location.href;
+        setShowShare(true);
+        // const postUrl = window.location.href;
 
+        // try {
+        //     if (navigator.share) {
+        //         await navigator.share({
+        //             title: post.title,
+        //             text: post.excerpt || post.title,
+        //             url: postUrl,
+        //         });
+        //     } else {
+        //         await navigator.clipboard.writeText(postUrl);
+        //         alert("Post link copied!");
+        //     }
+        // } catch (error) {
+        //     if (error.name !== "AbortError") {
+        //         console.error("Unable to share post:", error);
+        //     }
+        // }
+    };
+    // Builds a link that works for anyone, not just inside your session
+    const getShareUrl = () => `${window.location.origin}/post/${post._id}`;
+
+    // Opens the phone's native share sheet (Instagram, Messages, etc.)
+    const handleNativeShare = async () => {
         try {
-            if (navigator.share) {
-                await navigator.share({
-                    title: post.title,
-                    text: post.excerpt || post.title,
-                    url: postUrl,
-                });
-            } else {
-                await navigator.clipboard.writeText(postUrl);
-                alert("Post link copied!");
-            }
+            await navigator.share({
+                title: post.title,
+                text: post.excerpt || post.title,
+                url: getShareUrl(),
+            });
+            setShowShare(false);
         } catch (error) {
+            // AbortError just means the user closed the sheet
             if (error.name !== "AbortError") {
                 console.error("Unable to share post:", error);
             }
         }
     };
 
+    // Copies the link and shows "Copied!" for 2 seconds
+    const copyLink = async () => {
+        try {
+            await navigator.clipboard.writeText(getShareUrl());
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        } catch (error) {
+            console.error("Unable to copy link:", error);
+        }
+    };
+
+    // The list of platforms. To add one, add one more object here
+    const shareTargets = () => {
+        const url = encodeURIComponent(getShareUrl());
+        const text = encodeURIComponent(post.title);
+
+        return [
+            { name: "WhatsApp", icon: <FaWhatsapp size={26} />, bg: "#25D366", href: `https://wa.me/?text=${text}%20${url}` },
+            { name: "Facebook", icon: <FaFacebookF size={24} />, bg: "#1877F2", href: `https://www.facebook.com/sharer/sharer.php?u=${url}` },
+            { name: "X", icon: <FaXTwitter size={24} />, bg: "#000000", href: `https://twitter.com/intent/tweet?text=${text}&url=${url}` },
+            { name: "Telegram", icon: <FaTelegram size={26} />, bg: "#26A5E4", href: `https://t.me/share/url?url=${url}&text=${text}` },
+            { name: "LinkedIn", icon: <FaLinkedinIn size={24} />, bg: "#0A66C2", href: `https://www.linkedin.com/sharing/share-offsite/?url=${url}` },
+        ];
+    };
+
     const handleComment = async (e) => {
         e.preventDefault();
-
+        if (!requireLogin()) return;
         const content = newComment.trim();
 
         if (!content || submitting) return;
@@ -1036,6 +1126,76 @@ const ReadPost = ({
                     </span>
                 </div>
             </footer>
+            {/* Share Popup */}
+            {showShare && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4"
+                    onClick={() => setShowShare(false)}
+                >
+                    <div
+                        className="w-full max-w-md bg-[#242630] border border-[#383a45] rounded-2xl p-6"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="flex items-center justify-between mb-5">
+                            <h3 className="text-gray-100 font-semibold">Share</h3>
+                            <button
+                                onClick={() => setShowShare(false)}
+                                className="p-1.5 text-gray-400 hover:text-white rounded-lg hover:bg-[#30323d]"
+                            >
+                                <X size={18} />
+                            </button>
+                        </div>
+
+                        {/* Sliding icon row */}
+                        <div className="flex gap-4 overflow-x-auto pb-3">
+                            {shareTargets().map((target) => (
+                                <a
+                                    key={target.name}
+                                    href={target.href}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex flex-col items-center gap-2 shrink-0 text-xs text-gray-400 hover:text-gray-200"
+                                >
+                                    <span
+                                        className="w-14 h-14 rounded-full flex items-center justify-center text-white"
+                                        style={{ backgroundColor: target.bg }}
+                                    >
+                                        {target.icon}
+                                    </span>
+                                    {target.name}
+                                </a>
+                            ))}
+
+                            {navigator.share && (
+                                <button
+                                    onClick={handleNativeShare}
+                                    className="flex flex-col items-center gap-2 shrink-0 text-xs text-gray-400 hover:text-gray-200"
+                                >
+                                    <span className="w-14 h-14 rounded-full bg-[#303b3a] text-[#8bd19e] flex items-center justify-center">
+                                        <Share2 size={22} />
+                                    </span>
+                                    More
+                                </button>
+                            )}
+                        </div>
+
+                        {/* Link box + Copy */}
+                        <div className="flex items-center gap-2 mt-4 p-2 pl-4 bg-[#1e1f26] border border-[#383a45] rounded-xl">
+                            <input
+                                readOnly
+                                value={getShareUrl()}
+                                className="flex-1 min-w-0 bg-transparent text-sm text-gray-300 outline-none"
+                            />
+                            <button
+                                onClick={copyLink}
+                                className="px-4 py-2 rounded-lg bg-[#8bd19e] text-[#17251c] text-sm font-semibold"
+                            >
+                                {copied ? "Copied!" : "Copy"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
         </div>
     );

@@ -54,6 +54,7 @@ function App() {
       </ProtectedRoute>} />
       <Route path="/devProfile" element={<DevProfile profile={devUserProfile} posts={devUserPosts}></DevProfile>}></Route>
       <Route path="/post-details" element={<ReadPost />} />
+      <Route path="/post/:id" element={<ReadPost />} />
     </Routes>
 
   </>

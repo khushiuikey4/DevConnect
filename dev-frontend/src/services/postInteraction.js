@@ -169,7 +169,7 @@ export async function getPostFromServer(postId) {
             throw new Error(data.message || "Failed to fetch post");
         }
 
-        return data.freshPost;
+        return data;
     } catch (error) {
         return {
             message: "Error from the backend in fetching the post",
