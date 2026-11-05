@@ -100,6 +100,9 @@ function PostCard({ post, currentUser, onLike, onSave, onClick, gotoProfile }) {
   const savedBy = Array.isArray(post.savedBy) ? post.savedBy : [];
   // const saved = !!currentUserId && savedBy.includes(currentUserId);
   const saved = currentUser.saved?.includes(post._id) ?? false;
+  console.log("Current User : ", currentUser);
+  console.log("saved array : ", currentUser.saved);
+  console.log('saved : ', saved);
   const [saveToggle, setSaveToggle] = useState(saved);
   const excerpt = post.excerpt || post.content?.slice(0, 160) || "";
   const authorId = post.author._id;

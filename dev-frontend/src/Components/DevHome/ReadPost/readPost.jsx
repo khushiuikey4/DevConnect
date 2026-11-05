@@ -7,7 +7,9 @@ import {
     addReplyToCommentOnServer,
     editCommentToServer,
     deleteCommentFromServer,
-    addCommentLikeToServer
+    addCommentLikeToServer,
+    savePostToServer,
+    addPostLikeToServer, getPostFromServer
 } from "../../../services/postInteraction";
 import { getCurrentDevFromServer } from "../../../services/currentDev";
 
@@ -63,11 +65,27 @@ const ReadPost = ({
         fetchCurrentUser();
     }, []);
 
-    const post = location.state?.post;
+    const routePost = location.state?.post;
+    const [freshPost, setFreshPost] = useState(null);
+    const post = freshPost || routePost;
+    useEffect(() => {
+        if (!routePost?._id) return;
+        const fetchFreshPost = async () => {
+            try {
+                const response = await getPostFromServer(routePost._id);
+                if (response?.error) {
+                    throw new Error(response.Error);
+                }
+                setFreshPost(response.post)
+            } catch (error) {
+                console.error("Unable to fetch latest post", error)
+            }
+        }
+        fetchFreshPost();
+    }, [routePost?._id])
 
     const [liked, setLiked] = useState(false);
     const [likeCount, setLikeCount] = useState(0);
-    const [saved, setSaved] = useState(isSaved);
     const [comments, setComments] = useState([]);
     const [newComment, setNewComment] = useState("");
     const [submitting, setSubmitting] = useState(false);
@@ -79,7 +97,23 @@ const ReadPost = ({
     const [expandedReplies, setExpandedReplies] = useState({});
     const [editingCommentId, setEditingCommentId] = useState(null);
     const [editedCommentText, setEditedCommentText] = useState("");
+    const [saved, setSaved] = useState(false);
 
+    useEffect(() => {
+        if (!currentUser?._id || !post?._id) return;
+
+        const isPostSaved = currentUser.saved?.some(
+            (savedPostId) => {
+                console.log("Comparing saved ID:", savedPostId.toString());
+
+                return savedPostId.toString() === post._id.toString();
+            }
+        );
+
+        console.log("Saved result:", isPostSaved);
+
+        setSaved(!!isPostSaved);
+    }, [currentUser, post?._id]);
     const handleEditComment = async (postId, commentId) => {
         try {
             await editCommentToServer(postId, commentId, editedCommentText);
@@ -166,17 +200,23 @@ const ReadPost = ({
 
         const postLikes = post.likes || [];
 
+        console.log("LIKE CHECK");
+        console.log("Current user:", currentUserId);
+        console.log("Post likes:", postLikes);
+
+        const isLiked = postLikes.some((user) => {
+            const userId = user?._id || user;
+
+            console.log("Comparing like ID:", userId?.toString());
+
+            return userId?.toString() === currentUserId;
+        });
+
+        console.log("Liked result:", isLiked);
+
         setLikeCount(postLikes.length);
-
-        setLiked(
-            postLikes.some((user) => {
-                const userId = user?._id || user;
-                return userId?.toString() === currentUserId;
-            })
-        );
-
-        setSaved(isSaved);
-    }, [post, currentUserId, isSaved]);
+        setLiked(isLiked);
+    }, [post, currentUserId]);
 
     // Submit a reply
     const handleReply = async (commentId) => {
@@ -302,7 +342,7 @@ const ReadPost = ({
         setLikeCount((prev) => prev + (nextLiked ? 1 : -1));
 
         try {
-            await onLike?.(post._id, nextLiked);
+            await addPostLikeToServer(post._id, nextLiked);
         } catch (error) {
             setLiked(!nextLiked);
             setLikeCount((prev) => prev + (nextLiked ? -1 : 1));
@@ -312,11 +352,10 @@ const ReadPost = ({
 
     const handleSave = async () => {
         const nextSaved = !saved;
-
         setSaved(nextSaved);
 
         try {
-            await onSave?.(post._id, nextSaved);
+            await savePostToServer(post._id, nextSaved);
         } catch (error) {
             setSaved(!nextSaved);
             console.error("Unable to save post:", error);
@@ -991,7 +1030,7 @@ const ReadPost = ({
                     <span className="font-mono">
                         {"< DevConnect />"}
                     </span>
-//dshujkn
+
                     <span>
                         Built for developers, by developers.
                     </span>

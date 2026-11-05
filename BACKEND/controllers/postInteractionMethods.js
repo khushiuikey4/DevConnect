@@ -13,14 +13,15 @@ exports.postInteractionMethods = async (req, res) => {
         if (task == 0) {
             // Like the post
             const { postId, liked } = req.body;
+            let updatedPost;
             if (liked) {
-                const updatedPost = await Post.findOneAndUpdate(
+                updatedPost = await Post.findOneAndUpdate(
                     { _id: postId },
                     { $addToSet: { likes: userId } },
                     { new: true }
                 );
             } else {
-                const updatedPost = await Post.findOneAndUpdate(
+                updatedPost = await Post.findOneAndUpdate(
                     { _id: postId },
                     { $pull: { likes: userId } },
                     { new: true }
@@ -39,15 +40,16 @@ exports.postInteractionMethods = async (req, res) => {
             });
         } else if (task == 1) {
             //saved the post
+            let updatedPost;
             const { postId, saved } = req.body;
             if (saved) {
-                const updatedPost = await Dev.findOneAndUpdate(
+                updatedPost = await Dev.findOneAndUpdate(
                     { _id: userId },
                     { $addToSet: { saved: postId } },
                     { new: true }
                 )
             } else {
-                const updatedPost = await Dev.findOneAndUpdate(
+                updatedPost = await Dev.findOneAndUpdate(
                     { _id: userId },
                     { $pull: { saved: postId } },
                     { new: true }
@@ -258,6 +260,18 @@ exports.postInteractionMethods = async (req, res) => {
                     : "Comment disliked successfully",
                 comment: updatedComment
             });
+        } else if (task == 8) {
+            const { postId } = req.body;
+            const freshPost = Post.findById(postId);
+            if (!freshPost) {
+                return res.status(404).json({
+                    message: "Fresh post not found"
+                })
+            }
+            return res.status(200).json({
+                message: "FreshPost fetched successfully",
+                freshPost: freshPost
+            })
         }
     } catch (error) {
         return res.status(500).json({

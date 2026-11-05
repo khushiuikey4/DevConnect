@@ -155,3 +155,25 @@ export async function addCommentLikeToServer(postId, commentId, isLiked) {
         }
     }
 }
+export async function getPostFromServer(postId) {
+    try {
+        const response = await fetch('http://localhost:3000/postInteraction', {
+            method: 'POST',
+            headers: { 'Content-Type': "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ task: 8, postId: postId })
+        })
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.message || "Failed to fetch post");
+        }
+
+        return data.freshPost;
+    } catch (error) {
+        return {
+            message: "Error from the backend in fetching the post",
+            error: error.message
+        }
+    }
+}
