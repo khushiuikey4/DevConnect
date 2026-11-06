@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { getMyPostsFromServer } from "../../services/myPosts";
-import { searchFromServer } from "../../services/search";
+import { searchOwnFromServer } from "../../services/search";
 
 const FILTERS = [
   { key: "all", label: "all" },
@@ -139,15 +139,19 @@ export default function DevMyPosts({
   onDelete,
   onContinueWriting,
 }) {
+  const [serverPosts, setServerPosts] = useState([]);
   const [filter, setFilter] = useState("latest");
   const [posts, setPosts] = useState([]);
   const [search, setSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
   const fetchMyPosts = async () => {
     try {
       const result = await getMyPostsFromServer();
       console.log("My posts API response:", result);
+      setServerPosts(result.posts || []);
       setPosts(result.posts || []);
+      setStatusFilter('all');
     } catch (error) {
       console.error("Failed to fetch my posts:", error);
     }
@@ -164,46 +168,78 @@ export default function DevMyPosts({
     )
     return oldestSorted;
   }
+  const handleStatus = (arr) => {
+    if (statusFilter == 'published') {
+      const newPosts = arr.filter((post) => {
+        return post.status === 'published'
+      })
+      setFilter('latest')
+      return newPosts;
+    } else if (statusFilter == 'draft') {
+      const newPosts = arr.filter((post) => {
+        return post.status === 'draft';
+      })
+      setFilter('latest');
+      return handleFilter(newPosts);
+    } else if (statusFilter === 'all') {
+      setFilter('latest')
+      return arr;
+    }
+  }
+  const handleFilter = (arr) => {
+    if (filter === 'latest') {
+      const newPosts = getLatestPosts(arr);
+      return newPosts;
+    } else if (filter === 'oldest') {
+      const newPosts = getOldestPosts(arr);
+      return newPosts;
+    }
+  }
   const handleSearch = async () => {
     if (searchQuery == "") {
       fetchMyPosts();
+      setFilter('latest');
+      setStatusFilter('all')
     } else {
-      const response = await searchFromServer(searchQuery);
-      const matchedPosts = response?.posts || [];
-      if (filter == 'latest') {
-        setPosts(getLatestPosts(matchedPosts));
-      }
-      else {
-        setPosts(getOldestPosts(matchedPosts))
-      }
+      const response = await searchOwnFromServer(searchQuery);
+      const respnosePosts = response?.posts || [];
+      setServerPosts(respnosePosts);
+      setStatusFilter('all');
+      setFilter('latest');
+      setPosts(getLatestPosts(respnosePosts));
     }
   }
-  const filteredPosts = useMemo(() => {
-    return filter === "latest"
-      ? getLatestPosts(posts)
-      : getOldestPosts(posts);
-  }, [posts, filter]);
 
   useEffect(() => {
     fetchMyPosts();
   }, []);
 
+  useEffect(() => {
+    const newArr = handleStatus(serverPosts);
+    setPosts(newArr)
+  }, [statusFilter])
+
+  useEffect(() => {
+    const newArr = handleFilter(posts);
+    setPosts(newArr);
+  }, [filter])
+
   const counts = useMemo(
     () => ({
-      all: posts.length,
-      published: posts.filter(
+      all: serverPosts.length,
+      published: serverPosts.filter(
         (post) => post.status === "published"
       ).length,
-      draft: posts.filter(
+      draft: serverPosts.filter(
         (post) => post.status === "draft"
       ).length,
     }),
-    [posts]
+    [serverPosts]
   );
 
   const totalLikes = useMemo(
     () =>
-      posts.reduce(
+      serverPosts.reduce(
         (sum, post) =>
           sum +
           (Array.isArray(post.likes)
@@ -211,8 +247,9 @@ export default function DevMyPosts({
             : post.likes || 0),
         0
       ),
-    [posts]
+    [serverPosts]
   );
+
 
 
   return (
@@ -275,8 +312,8 @@ export default function DevMyPosts({
           {FILTERS.map((item) => (
             <button
               key={item.key}
-              onClick={() => setFilter(item.key)}
-              className={`font-mono text-[0.8rem] py-2 mr-[22px] border-b-2 transition-colors ${filter === item.key
+              onClick={() => setStatusFilter(item.key)}
+              className={`font-mono text-[0.8rem] py-2 mr-[22px] border-b-2 transition-colors ${statusFilter === item.key
                 ? "text-[#e8e9ee] border-[#8fd19e]"
                 : "text-[#5a5c6b] border-transparent hover:text-[#8b8d9b]"
                 }`}
@@ -308,22 +345,22 @@ export default function DevMyPosts({
             ))}
           </div>
         </div>
-        {filteredPosts.length === 0 ? (
+        {posts.length === 0 ? (
           <div className="text-center py-16 px-5 border border-dashed border-[#383a46] rounded-[10px] text-[#5a5c6b]">
             <div className="font-mono text-[0.9rem] text-[#8fd19e] mb-2.5">
               // nothing here yet
             </div>
 
             <p className="text-[0.9rem] mb-4">
-              {filter === "draft"
+              {statusFilter === "draft"
                 ? "No drafts in progress."
-                : filter === "published"
+                : statusFilter === "published"
                   ? "No published posts yet."
                   : "You haven't created any posts yet."}
             </p>
           </div>
         ) : (
-          filteredPosts.map((post) => (
+          posts.map((post) => (
             <PostRow
               key={post._id || post.id}
               post={post}

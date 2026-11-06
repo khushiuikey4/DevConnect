@@ -1,7 +1,7 @@
 
 const Post = require('../models/post');
 const Dev = require('../models/dev');
-
+const mongoose = require('mongoose');
 // Default feed when there is no search text
 const getRecentPosts = () => {
     return Post.aggregate([
@@ -61,6 +61,74 @@ const searchPosts = (q) => {
         {
             $match: {
                 status: "published"
+            }
+        },
+        {
+            $lookup: {
+                from: Dev.collection.name,
+                localField: "author",
+                foreignField: "_id",
+                as: "author"
+            }
+        },
+        {
+            $unwind: {
+                path: "$author",
+                preserveNullAndEmptyArrays: false
+            }
+        },
+        {
+            $project: {
+                author: { _id: 1, username: 1, avatar: 1 },
+                title: 1,
+                content: 1,
+                excerpt: 1,
+                tags: 1,
+                likes: 1,
+                savedBy: 1,
+                status: 1,
+                createdAt: 1,
+                updatedAt: 1,
+                score: { $meta: "searchScore" }
+            }
+        }
+    ]);
+};
+//its handler (below one's)
+
+exports.searchOwnPostsHandler = async (req, res) => {
+    try {
+        const devId = req.session?.dev?._id;
+        if (!devId) return res.status(401).json({ message: "Please log in first" });
+
+        const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
+        const posts = q ? await searchOwnPosts(q, devId) : [];
+
+        return res.status(200).json({ message: "Posts fetched successfully.", posts });
+    } catch (error) {
+        return res.status(500).json({ message: "Search failed", error: error.message });
+    }
+};
+//user's own posts fetching based on searchquery
+const searchOwnPosts = (q, userId) => {
+    return Post.aggregate([
+        {
+            $search: {
+                index: "postSearch",
+                compound: {
+                    should: [
+                        { autocomplete: { query: q, path: "title" } },
+                        { autocomplete: { query: q, path: "excerpt" } },
+                        { autocomplete: { query: q, path: "tags" } },
+                        { autocomplete: { query: q, path: "content" } }
+                    ],
+                    minimumShouldMatch: 1
+                }
+            }
+        },
+        {
+            $match: {
+                author: new mongoose.Types.ObjectId(userId)
             }
         },
         {
