@@ -33,3 +33,21 @@ exports.getMyPosts = async (req, res) => {
         });
     }
 };
+exports.deleteMyPost = async (req, res) => {
+    try {
+        const { postId } = req.body;
+        const devId = req.session?.dev?._id;
+        if (devId) {
+            const deletedPost = await Post.findOneAndDelete({ _id: postId, author: devId });
+            return res.status(200).json({
+                message: "post deleted successfully",
+                deletedPost
+            })
+        }
+    } catch (error) {
+        return res.status(400).json({
+            message: "Unable to delete your post",
+            error: error.message
+        })
+    }
+}

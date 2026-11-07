@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { getMyPostsFromServer } from "../../services/myPosts";
 import { searchOwnFromServer } from "../../services/search";
+import { deleteMyPostFromServer } from "../../services/myPosts";
 
 const FILTERS = [
   { key: "all", label: "all" },
@@ -136,13 +137,11 @@ function PostRow({ post, onEdit, onDelete, onContinueWriting }) {
 export default function DevMyPosts({
   userName = "you",
   onEdit,
-  onDelete,
   onContinueWriting,
 }) {
   const [serverPosts, setServerPosts] = useState([]);
   const [filter, setFilter] = useState("latest");
   const [posts, setPosts] = useState([]);
-  const [search, setSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const fetchMyPosts = async () => {
@@ -249,6 +248,19 @@ export default function DevMyPosts({
       ),
     [serverPosts]
   );
+  const onDelete = async (postId) => {
+    try {
+      const response = await deleteMyPostFromServer(postId);
+
+      if (response.deletedPost) {
+        setPosts(prevPosts =>
+          prevPosts.filter(post => post._id !== postId)
+        );
+      }
+    } catch (error) {
+      console.error("Failed to delete post:", error);
+    }
+  };
 
 
 
