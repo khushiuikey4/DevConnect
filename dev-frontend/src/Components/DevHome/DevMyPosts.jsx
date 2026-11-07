@@ -15,6 +15,7 @@ function PostRow({ post, onEdit, onDelete, onContinueWriting }) {
   const postId = post._id || post.id;
   const authorName = post.author?.username || "Unknown author";
   const authorAvatar = post.author?.avatar;
+  const [deleteBox, setDeleteBox] = useState(false);
 
   const postDate = post.createdAt
     ? new Date(post.createdAt).toLocaleDateString("en-US", {
@@ -124,15 +125,58 @@ function PostRow({ post, onEdit, onDelete, onContinueWriting }) {
         </button>
 
         <button
-          onClick={() => onDelete?.(postId)}
+          onClick={() => setDeleteBox(true)}
           className="flex-1 md:flex-none font-mono text-[0.76rem] px-3.5 py-1.5 rounded-md border border-[#383a46] text-[#8b8d9b] hover:text-[#e18a8a] hover:border-[#e18a8a] transition-colors"
         >
           delete
         </button>
       </div>
+
+      {deleteBox && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70  px-4"
+          onClick={() => setDeleteBox(false)}
+        >
+          <div
+            className="w-full max-w-[420px] bg-[#23252e] border border-[#383a46] rounded-[10px] p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-[1.05rem] font-semibold text-[#e8e9ee] mb-2">
+              Delete this post?
+            </h2>
+
+            <p className="text-[0.87rem] text-[#8b8d9b] leading-[1.55] mb-1">
+              {post.title}
+            </p>
+            <p className="font-mono text-[0.76rem] text-[#e18a8a] mb-5">
+              this action cannot be undone
+            </p>
+
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setDeleteBox(false)}
+                className="font-mono text-[0.76rem] px-4 py-2 rounded-md border border-[#383a46] text-[#8b8d9b] hover:text-[#e8e9ee] hover:border-[#8b8d9b] transition-colors"
+              >
+                cancel
+              </button>
+
+              <button
+                onClick={() => {
+                  setDeleteBox(false);
+                  onDelete?.(postId);
+                }}
+                className="font-mono text-[0.76rem] px-4 py-2 rounded-md border border-[#e18a8a] text-[#e18a8a] hover:bg-[#e18a8a1a] transition-colors"
+              >
+                yes, delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
-  );
+  )
 }
+
 
 export default function DevMyPosts({
   userName = "you",
@@ -254,6 +298,9 @@ export default function DevMyPosts({
 
       if (response.deletedPost) {
         setPosts(prevPosts =>
+          prevPosts.filter(post => post._id !== postId)
+        );
+        setServerPosts(prevPosts =>
           prevPosts.filter(post => post._id !== postId)
         );
       }

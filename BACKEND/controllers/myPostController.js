@@ -43,6 +43,8 @@ exports.deleteMyPost = async (req, res) => {
                 message: "post deleted successfully",
                 deletedPost
             })
+        } else {
+            return res.status(401).json({ message: "Please log in first" });
         }
     } catch (error) {
         return res.status(400).json({
