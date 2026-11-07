@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { useNavigate } from "react-router-dom"
 import { getMyPostsFromServer } from "../../services/myPosts";
 import { searchOwnFromServer } from "../../services/search";
 import { deleteMyPostFromServer } from "../../services/myPosts";
@@ -16,6 +17,7 @@ function PostRow({ post, onEdit, onDelete, onContinueWriting }) {
   const authorName = post.author?.username || "Unknown author";
   const authorAvatar = post.author?.avatar;
   const [deleteBox, setDeleteBox] = useState(false);
+  const navigate = useNavigate();
 
   const postDate = post.createdAt
     ? new Date(post.createdAt).toLocaleDateString("en-US", {
@@ -115,9 +117,7 @@ function PostRow({ post, onEdit, onDelete, onContinueWriting }) {
       <div className="flex flex-row md:flex-col gap-2">
         <button
           onClick={() =>
-            isDraft
-              ? onContinueWriting?.(postId)
-              : onEdit?.(postId)
+            navigate(`/my-posts/edit/${post._id}`)
           }
           className="flex-1 md:flex-none font-mono text-[0.76rem] px-3.5 py-1.5 rounded-md border border-[#383a46] text-[#8b8d9b] hover:text-[#e8e9ee] hover:border-[#8b8d9b] transition-colors whitespace-nowrap"
         >

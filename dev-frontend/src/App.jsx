@@ -10,6 +10,7 @@ import ProtectedRoute from "./Components/AuthenticationPage/protectedRoute";
 import DevProfile from "./Components/DevProfile/devProfile";
 import getOtherUserProfileFromServer from "./services/UserProfile"
 import ReadPost from "./Components/DevHome/ReadPost/readPost";
+import EditPost from "./Components/EditPost/editPost";
 
 
 function App() {
@@ -55,6 +56,9 @@ function App() {
       <Route path="/devProfile" element={<DevProfile profile={devUserProfile} posts={devUserPosts}></DevProfile>}></Route>
       <Route path="/post-details" element={<ReadPost />} />
       <Route path="/post/:id" element={<ReadPost />} />
+      <Route path="/my-posts/edit/:postId" element={<ProtectedRoute>
+        <EditPost tab={tab} setTab={setTab} />
+      </ProtectedRoute>} />
     </Routes>
 
   </>
