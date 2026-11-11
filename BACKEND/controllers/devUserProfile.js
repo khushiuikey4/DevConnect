@@ -32,3 +32,42 @@ exports.getDevUserProfile = async (req, res) => {
         });
     }
 }
+exports.handleFollowToggle = async (req, res) => {
+    const { currentUserId, devId, isFollowing } = req.body;
+    try {
+        const dev = await Dev.findById(currentUserId);
+
+        if (!dev) {
+            return res.status(401).json({
+                message: "Please log in first"
+            });
+        }
+
+        if (isFollowing) {
+            // Follow
+            await Dev.findByIdAndUpdate(currentUserId, {
+                $addToSet: { following: devId }
+            });
+        } else {
+
+            // Unfollow
+            await Dev.findByIdAndUpdate(currentUserId, {
+                $pull: { following: devId }
+            })
+        }
+
+        return res.status(200).json({
+            message: isFollowing
+                ? "Dev User unfollowed successfully."
+                : "Dev User followed successfully."
+        });
+
+    } catch (error) {
+        console.error("handleFollowToggle Error:", error);
+
+        return res.status(500).json({
+            message: "Failed to follow/unfollow Dev User.",
+            error: error.message
+        });
+    }
+};

@@ -27,6 +27,6 @@ export default function DevHomePage({ tab, setTab, setSearchParams, gotoProfile 
         {tab == "feed" && < DevContainer gotoProfile={gotoProfile}></DevContainer>}
         {tab == "my-posts" && <DevMyPosts></DevMyPosts>}
         {tab == "saved" && <DevSaved></DevSaved>}
-        {tab == "explore" && <DevExplore></DevExplore>}
+        {tab == "explore" && <DevExplore gotoProfile={gotoProfile}></DevExplore>}
     </>
 }

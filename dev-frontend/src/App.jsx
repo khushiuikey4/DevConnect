@@ -8,18 +8,30 @@ import NewPost from "./Components/newPost/NewPost";
 import { useSearchParams } from "react-router-dom";
 import ProtectedRoute from "./Components/AuthenticationPage/protectedRoute";
 import DevProfile from "./Components/DevProfile/devProfile";
-import getOtherUserProfileFromServer from "./services/UserProfile"
+import { getOtherUserProfileFromServer } from "./services/UserProfile"
 import ReadPost from "./Components/DevHome/ReadPost/readPost";
 import EditPost from "./Components/EditPost/editPost";
+import { getCurrentDevFromServer } from "./services/currentDev";
 
 
 function App() {
   const [searchParams, setSearchParams] = useSearchParams();
   let [tab, setTab] = useState(searchParams.get("tab") || "feed");
+  const [currentUser, setCurrentUser] = useState(null);
+  useEffect(() => {
+    async function fetchCurrentUser() {
+      const user = await getCurrentDevFromServer();
+      if (user?.currentDev) {
+        setCurrentUser(user.currentDev);
+      } else {
+        console.log("couldn't fetch the current user.")
+      }
+    }
+    fetchCurrentUser();
+  }, [])
   const navigate = useNavigate();
   useEffect(() => {
     const tabFromURL = searchParams.get("tab");
-
     if (tabFromURL) {
       setTab(tabFromURL);
     }
@@ -53,7 +65,7 @@ function App() {
       <Route path="/MyProfileUpdate" element={<ProtectedRoute>
         <MyProfile />
       </ProtectedRoute>} />
-      <Route path="/devProfile" element={<DevProfile profile={devUserProfile} posts={devUserPosts}></DevProfile>}></Route>
+      <Route path="/devProfile" element={<DevProfile profile={devUserProfile} currentUser={currentUser} posts={devUserPosts}></DevProfile>}></Route>
       <Route path="/post-details" element={<ReadPost />} />
       <Route path="/post/:id" element={<ReadPost />} />
       <Route path="/my-posts/edit/:postId" element={<ProtectedRoute>

@@ -1,4 +1,6 @@
-
+import { useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { followToggleOnServer } from "../../services/UserProfile"
 const SOCIAL_LABELS = {
     github: "github",
     twitter: "x / twitter",
@@ -8,24 +10,26 @@ const SOCIAL_LABELS = {
 export default function DevProfile({
     profile,
     posts = [],
-    currentUserId,
-    onEditProfile,
-    onFollow,
+    currentUser,
     onPostClick
 }) {
+    console.log(currentUser)
+    const currentUserId = currentUser?._id;
     if (!profile) {
         return <p className="text-center text-[#8b8d9b]">Loading profile...</p>;
     }
+    console.log(currentUserId)
 
     const followers = profile.followers || [];
     const following = profile.following || [];
+    const navigate = useNavigate();
 
     const isOwnProfile =
         String(profile._id) === String(currentUserId);
 
-    const isFollowing = followers.some(
+    const [isFollowing, setIsFollowing] = useState(followers.some(
         id => String(id) === String(currentUserId)
-    );
+    ))
 
     const tagCounts = {};
 
@@ -47,6 +51,17 @@ export default function DevProfile({
         { label: "followers", value: followers.length },
         { label: "following", value: following.length },
     ];
+    const onEditProfile = () => {
+        navigate('/MyProfileUpdate');
+    }
+    const onFollow = async () => {
+        try {
+            const response = await followToggleOnServer(currentUserId, profile._id, !isFollowing);
+            setIsFollowing(prev => !prev);
+        } catch (error) {
+            console.error(error);
+        }
+    };
 
     return (
         <div className="min-h-screen bg-[#1e1f26] text-[#e8e9ee]">

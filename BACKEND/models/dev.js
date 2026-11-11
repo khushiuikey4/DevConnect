@@ -63,7 +63,6 @@ const devSchema = new mongoose.Schema({
 //     { weights: { username: 5, bio: 1 }, name: "UserTextIndex" }
 // );
 
-
-
+devSchema.index({ username: 1 });
 const Dev = mongoose.model('Dev', devSchema);
 module.exports = Dev;

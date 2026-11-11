@@ -1,13 +1,24 @@
-
 const Post = require('../models/post');
 const Dev = require('../models/dev');
 const mongoose = require('mongoose');
-// Default feed when there is no search text
-const getRecentPosts = () => {
+
+// How many posts/users are sent per page
+const POSTS_PER_PAGE = 3;
+
+// Helper: fetch recent published posts
+const getRecentPosts = (page = 1, limit = POSTS_PER_PAGE, additionalMatch = {}, sort = { createdAt: -1, _id: -1 }) => {
+    const match = { status: "published", ...additionalMatch };
+
     return Post.aggregate([
-        { $match: { status: "published" } },
-        { $sort: { createdAt: -1 } },
-        { $limit: 20 },
+        { $match: match },
+        {
+            $addFields: {
+                likesCount: { $size: { $ifNull: ["$likes", []] } }
+            }
+        },
+        { $sort: sort },
+        { $skip: (page - 1) * limit },
+        { $limit: limit + 1 },
         {
             $lookup: {
                 from: Dev.collection.name,
@@ -28,23 +39,37 @@ const getRecentPosts = () => {
                 savedBy: 1,
                 status: 1,
                 createdAt: 1,
-                updatedAt: 1
+                updatedAt: 1,
+                likesCount: 1
             }
         }
     ]);
 };
 
-// Initial user search
-const getRecentUsers = () => {
+// Helper: fetch recent users
+const getRecentUsers = (page = 1, limit = POSTS_PER_PAGE, additionalMatch = {}, sort = { createdAt: -1, _id: -1 }) => {
     return Dev.aggregate([
-        { $sort: { createdAt: -1 } },
-        { $limit: 20 },
-        { $project: { password: 0, email: 0, following: 0, followers: 0 } }
+        { $match: additionalMatch },
+        {
+            $addFields: {
+                followerCount: { $size: { $ifNull: ["$followers", []] } }
+            }
+        },
+        { $sort: sort },
+        { $skip: (page - 1) * limit },
+        { $limit: limit + 1 },
+        {
+            $project: {
+                password: 0,
+                email: 0
+            }
+        }
     ]);
 };
-// Initial post search
-const searchPosts = (q) => {
-    return Post.aggregate([
+
+// Helper: search posts with Atlas Search
+const searchPosts = (q, page = 1, limit = POSTS_PER_PAGE, additionalMatch = {}, sort = null) => {
+    const pipeline = [
         {
             $search: {
                 index: "postSearch",
@@ -61,9 +86,25 @@ const searchPosts = (q) => {
         },
         {
             $match: {
-                status: "published"
+                status: "published",
+                ...additionalMatch
             }
         },
+        {
+            $addFields: {
+                score: { $meta: "searchScore" },
+                likesCount: { $size: { $ifNull: ["$likes", []] } }
+            }
+        }
+    ];
+
+    if (sort) {
+        pipeline.push({ $sort: sort });
+    }
+
+    pipeline.push(
+        { $skip: (page - 1) * limit },
+        { $limit: limit + 1 },
         {
             $lookup: {
                 from: Dev.collection.name,
@@ -72,12 +113,7 @@ const searchPosts = (q) => {
                 as: "author"
             }
         },
-        {
-            $unwind: {
-                path: "$author",
-                preserveNullAndEmptyArrays: false
-            }
-        },
+        { $unwind: { path: "$author", preserveNullAndEmptyArrays: false } },
         {
             $project: {
                 author: { _id: 1, username: 1, avatar: 1 },
@@ -90,13 +126,16 @@ const searchPosts = (q) => {
                 status: 1,
                 createdAt: 1,
                 updatedAt: 1,
-                score: { $meta: "searchScore" }
+                score: 1,
+                likesCount: 1
             }
         }
-    ]);
-};
-//its handler (below one's)
+    );
 
+    return Post.aggregate(pipeline);
+};
+
+// Search own posts handler
 exports.searchOwnPostsHandler = async (req, res) => {
     try {
         const devId = req.session?.dev?._id;
@@ -110,7 +149,7 @@ exports.searchOwnPostsHandler = async (req, res) => {
         return res.status(500).json({ message: "Search failed", error: error.message });
     }
 };
-//user's own posts fetching based on searchquery
+
 const searchOwnPosts = (q, userId) => {
     return Post.aggregate([
         {
@@ -164,7 +203,6 @@ const searchOwnPosts = (q, userId) => {
     ]);
 };
 
-
 exports.searchSavedPostsHandler = async (req, res) => {
     try {
         const devId = req.session?.dev?._id;
@@ -178,7 +216,6 @@ exports.searchSavedPostsHandler = async (req, res) => {
         return res.status(500).json({ message: "Search failed", error: error.message });
     }
 };
-
 
 const searchOwnSavedPosts = async (q, devId) => {
     const dev = await Dev.findById(devId)
@@ -201,8 +238,9 @@ const searchOwnSavedPosts = async (q, devId) => {
     return dev?.saved || [];
 };
 
-const searchUsers = (q) => {
-    return Dev.aggregate([
+// Helper: search users with Atlas Search
+const searchUsers = (q, page = 1, limit = POSTS_PER_PAGE, additionalMatch = {}, sort = null) => {
+    const pipeline = [
         {
             $search: {
                 index: "devSearch",
@@ -213,33 +251,145 @@ const searchUsers = (q) => {
             }
         },
         {
-            $addFields: { score: { $meta: "searchScore" } }
-        },
+            $addFields: {
+                score: { $meta: "searchScore" },
+                followerCount: { $size: { $ifNull: ["$followers", []] } }
+            }
+        }
+    ];
+
+    if (Object.keys(additionalMatch).length > 0) {
+        pipeline.push({ $match: additionalMatch });
+    }
+
+    if (sort) {
+        pipeline.push({ $sort: sort });
+    }
+
+    pipeline.push(
+        { $skip: (page - 1) * limit },
+        { $limit: limit + 1 },
         {
             $project: {
                 password: 0,
-                email: 0,
-                following: 0,
-                followers: 0
+                email: 0
             }
         }
-    ]);
+    );
+
+    return Dev.aggregate(pipeline);
 };
 
-
 // Fetch all matching posts and users
+// Query params:
+// - q: search query text
+// - filter: "latest" | "following" | "trending" | "all"
+// - type: "posts" | "users" | "all"
+// - cursor / page: page number
+// - limit: items per page
 exports.getAll = async (req, res) => {
     try {
         const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
+        const cursor = req.query.cursor || req.query.page || null;
+        let page = 1;
+        if (cursor) {
+            const parsed = parseInt(cursor, 10);
+            if (!isNaN(parsed) && parsed > 0) {
+                page = parsed;
+            }
+        }
 
-        const [posts, users] = q
-            ? await Promise.all([searchPosts(q), searchUsers(q)])
-            : await Promise.all([getRecentPosts(), getRecentUsers()]);
+        const filter = typeof req.query.filter === "string" ? req.query.filter.trim().toLowerCase() : "latest";
+        const type = typeof req.query.type === "string" ? req.query.type.trim().toLowerCase() : "all";
+        const limit = parseInt(req.query.limit, 10) || POSTS_PER_PAGE;
+
+        const devId = req.session?.dev?._id;
+        let followingIds = [];
+        if (filter === "following" && devId) {
+            const currentDev = await Dev.findById(devId).select("following");
+            if (currentDev?.following && Array.isArray(currentDev.following)) {
+                followingIds = currentDev.following.map(id => new mongoose.Types.ObjectId(id));
+            }
+        }
+
+        // If filtering by following but user is not logged in or doesn't follow anyone:
+        if (filter === "following" && (!devId || followingIds.length === 0)) {
+            return res.status(200).json({
+                message: devId ? "You are not following anyone yet" : "Please log in to see posts from developers you follow",
+                posts: [],
+                users: [],
+                nextCursor: null,
+                hasMorePosts: false,
+                hasMoreUsers: false,
+                page
+            });
+        }
+
+        const fetchPosts = async () => {
+            if (filter === "following") {
+                const match = { author: { $in: followingIds } };
+                return q
+                    ? searchPosts(q, page, limit, match)
+                    : getRecentPosts(page, limit, match, { createdAt: -1, _id: -1 });
+            } else if (filter === "trending") {
+                return q
+                    ? searchPosts(q, page, limit, {}, { likesCount: -1, score: -1, createdAt: -1 })
+                    : getRecentPosts(page, limit, {}, { likesCount: -1, createdAt: -1, _id: -1 });
+            } else {
+                // latest or all
+                return q
+                    ? searchPosts(q, page, limit, {}, { createdAt: -1, score: -1 })
+                    : getRecentPosts(page, limit, {}, { createdAt: -1, _id: -1 });
+            }
+        };
+
+        const fetchUsers = async () => {
+            if (filter === "following") {
+                const match = { _id: { $in: followingIds } };
+                return q
+                    ? searchUsers(q, page, limit, match)
+                    : getRecentUsers(page, limit, match, { createdAt: -1, _id: -1 });
+            } else if (filter === "trending") {
+                return q
+                    ? searchUsers(q, page, limit, {}, { followerCount: -1, score: -1 })
+                    : getRecentUsers(page, limit, {}, { followerCount: -1, _id: -1 });
+            } else {
+                // latest or all
+                return q
+                    ? searchUsers(q, page, limit)
+                    : getRecentUsers(page, limit, {}, { createdAt: -1, _id: -1 });
+            }
+        };
+
+        let posts = [];
+        let users = [];
+
+        if (type === "posts") {
+            posts = await fetchPosts();
+        } else if (type === "users") {
+            users = await fetchUsers();
+        } else {
+            // all or unspecified (e.g. from DevFeed)
+            [posts, users] = await Promise.all([fetchPosts(), fetchUsers()]);
+        }
+
+        const hasMorePosts = posts.length > limit;
+        if (hasMorePosts) posts = posts.slice(0, limit);
+
+        const hasMoreUsers = users.length > limit;
+        if (hasMoreUsers) users = users.slice(0, limit);
+
+        const hasMore = type === "users" ? hasMoreUsers : hasMorePosts;
+        const nextCursor = hasMore ? String(page + 1) : null;
 
         return res.status(200).json({
             message: "Posts and users fetched successfully.",
             posts,
-            users
+            users,
+            nextCursor,
+            hasMorePosts,
+            hasMoreUsers,
+            page
         });
 
     } catch (error) {
@@ -249,7 +399,6 @@ exports.getAll = async (req, res) => {
         });
     }
 };
-
 
 // Following filter
 const getFollowing = async (usersList, postsList, req) => {
@@ -301,9 +450,8 @@ const getFollowing = async (usersList, postsList, req) => {
     return { users, posts };
 };
 
-
 // Trending filter
-const getTrending = async (usersList, postsList) => {
+exports.getTrending = async (usersList, postsList) => {
     const userIds = usersList.map(user => user._id);
     const postIds = postsList.map(post => post._id);
 
@@ -392,9 +540,8 @@ const getTrending = async (usersList, postsList) => {
     return { users, posts };
 };
 
-
 // Latest filter: posts from the past 48 hours
-const getLatest = async (usersList, postsList) => {
+exports.getLatest = async (usersList, postsList) => {
     const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000);
 
     const posts = await Post.find({
@@ -414,7 +561,6 @@ const getLatest = async (usersList, postsList) => {
         posts
     };
 };
-
 
 // Lower-level keyword filter: search within the provided lists
 const getLowerFiltered = (usersList, postsList, keyword) => {
@@ -441,7 +587,6 @@ const getLowerFiltered = (usersList, postsList, keyword) => {
 
     return { users, posts };
 };
-
 
 // Apply selected filter
 exports.getFiltered = async (req, res) => {
@@ -473,9 +618,9 @@ exports.getFiltered = async (req, res) => {
         } else if (filter === "following") {
             result = await getFollowing(usersList, postsList, req);
         } else if (filter === "trending") {
-            result = await getTrending(usersList, postsList);
+            result = await exports.getTrending(usersList, postsList);
         } else if (filter === "latest") {
-            result = await getLatest(usersList, postsList);
+            result = await exports.getLatest(usersList, postsList);
         } else {
             result = getLowerFiltered(
                 usersList,
@@ -496,29 +641,3 @@ exports.getFiltered = async (req, res) => {
         });
     }
 };
-
-
-// exports.getPosts = async (req, res) => {
-//     try {
-//         const { q } = req.query;
-//         if (!q) return res.status(400).json({ message: "Search query required" });
-
-//         const posts = await searchPosts(q);
-//         return res.status(200).json({ message: "Posts fetched successfully.", posts });
-//     } catch (error) {
-//         return res.status(500).json({ message: "Search failed", error: error.message });
-//     }
-// };
-
-
-// exports.getPeople = async (req, res) => {
-//     try {
-//         const { q } = req.query;
-//         if (!q) return res.status(400).json({ message: "Search query required" });
-
-//         const users = await searchUsers(q);
-//         return res.status(200).json({ message: "Users fetched successfully.", users });
-//     } catch (error) {
-//         return res.status(500).json({ message: "Search failed", error: error.message });
-//     }
-// };
