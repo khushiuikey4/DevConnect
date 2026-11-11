@@ -1,6 +1,8 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { getSavedPostsFromServer } from "../../services/savedPosts";
+import { savePostToServer } from "../../services/postInteraction";
+import { searchSavedFromServer } from "../../services/search";
 
 /**
  * DevConnect — Dev Saved (saved.js)
@@ -16,6 +18,7 @@ const AVATAR_GRADIENTS = [
 
 function SavedRow({ post, onUnsave, onPostClick }) {
   const postId = post._id || post.id;
+  const [saveStatus, setSaveStatus] = useState(true);
   const authorName =
     typeof post.author === "object"
       ? post.author?.username || "Unknown author"
@@ -31,6 +34,10 @@ function SavedRow({ post, onUnsave, onPostClick }) {
     (post.content ? post.content.slice(0, 160) : "");
 
   const savedAgo = post.savedAgo || "";
+  const handleSaveStatus = async (id, status) => {
+    setSaveStatus(prev => !prev);
+    const response = await savePostToServer(postId, !status);
+  }
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-4.5 items-start bg-[#23252e] border border-[#383a46] rounded-[10px] p-5 mb-3">
@@ -92,10 +99,10 @@ function SavedRow({ post, onUnsave, onPostClick }) {
 
       <div>
         <button
-          onClick={() => onUnsave?.(postId)}
+          onClick={() => handleSaveStatus(postId, saveStatus)}
           className="font-mono text-[0.76rem] px-3.5 py-1.5 rounded-md border border-[#383a46] text-[#e8a87c] bg-[#e8a87c14] hover:border-[#e8a87c] transition-colors whitespace-nowrap"
         >
-          🔖 unsave
+          🔖 {saveStatus ? "Unsave" : "Save"}
         </button>
       </div>
     </div >
@@ -151,11 +158,48 @@ export default function DevSaved({ onUnsave, onPostClick }) {
     [posts, activeTag]
   );
 
+  const [searchQuery, setSearchQuery] = useState("");
+  const handleSearch = async () => {
+    if (searchQuery != "") {
+      const response = await searchSavedFromServer(searchQuery);
+      const responsePosts = response?.posts || [];
+      setPosts(responsePosts);
+    } else {
+      try {
+        setLoading(true);
+        setError("");
+
+        const result = await getSavedPostsFromServer();
+
+        setPosts(result.posts || []);
+      } catch (error) {
+        console.error("Failed to fetch saved posts:", error);
+        setError(error.message || "Failed to fetch saved posts.");
+      } finally {
+        setLoading(false);
+      }
+    }
+  }
   return (
     <div className="min-h-screen bg-[#1e1f26] text-[#e8e9ee]">
       <main className="max-w-[1080px] mx-auto px-7 py-9 pb-20">
-        <div className="font-mono text-[0.82rem] text-[#5a5c6b] mb-1.5">
-          // <span className="text-[#8fd19e]">for later</span>
+        <div className="flex gap-3 mb-7">
+          <input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            type="text"
+            placeholder="Search your saved posts..."
+            className="flex-1 min-w-0 bg-[#23252e] border border-[#383a46] rounded-lg px-4 py-3 text-sm text-[#e8e9ee] placeholder:text-[#5a5c6b] outline-none focus:border-[#8fd19e] transition-colors"
+          />
+
+          <button
+            className="px-6 py-3 bg-[#8fd19e] text-[#1e1f26] rounded-lg text-sm font-mono font-semibold hover:bg-[#a3dfb0]"
+            onClick={() => {
+              handleSearch();
+            }}
+          >
+            Search
+          </button>
         </div>
 
         <div className="flex justify-between items-end flex-wrap gap-4 mb-6">

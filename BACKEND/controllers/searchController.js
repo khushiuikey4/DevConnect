@@ -34,6 +34,7 @@ const getRecentPosts = () => {
     ]);
 };
 
+// Initial user search
 const getRecentUsers = () => {
     return Dev.aggregate([
         { $sort: { createdAt: -1 } },
@@ -164,7 +165,42 @@ const searchOwnPosts = (q, userId) => {
 };
 
 
-// Initial user search
+exports.searchSavedPostsHandler = async (req, res) => {
+    try {
+        const devId = req.session?.dev?._id;
+        if (!devId) return res.status(401).json({ message: "Please log in first" });
+
+        const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
+        const posts = q ? await searchOwnSavedPosts(q, devId) : [];
+
+        return res.status(200).json({ message: "Posts fetched successfully.", posts });
+    } catch (error) {
+        return res.status(500).json({ message: "Search failed", error: error.message });
+    }
+};
+
+
+const searchOwnSavedPosts = async (q, devId) => {
+    const dev = await Dev.findById(devId)
+        .populate({
+            path: "saved",
+            match: {
+                $or: [
+                    { title: { $regex: q, $options: "i" } },
+                    { content: { $regex: q, $options: "i" } },
+                    { excerpt: { $regex: q, $options: "i" } },
+                    { tags: { $regex: q, $options: "i" } }
+                ]
+            },
+            populate: {
+                path: "author",
+                select: "username avatar"
+            }
+        });
+
+    return dev?.saved || [];
+};
+
 const searchUsers = (q) => {
     return Dev.aggregate([
         {

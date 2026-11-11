@@ -1,5 +1,4 @@
-
-const Post = require('../models/post');
+const Dev = require('../models/dev');
 
 exports.getSavedPosts = async (req, res) => {
     try {
@@ -11,19 +10,24 @@ exports.getSavedPosts = async (req, res) => {
             });
         }
 
-        console.log("Logged-in user ID:", devId);
+        const dev = await Dev.findById(devId)
+            .populate({
+                path: "saved",
+                populate: {
+                    path: "author",
+                    select: "username avatar"
+                }
+            });
 
-        const mySavedPosts = await Post.find({
-            savedBy: devId
-        })
-            .populate("author", "username avatar")
-            .sort({ createdAt: -1 });
-
-        console.log("Saved posts found:", mySavedPosts.length);
+        if (!dev) {
+            return res.status(404).json({
+                message: "Developer not found"
+            });
+        }
 
         return res.status(200).json({
             message: "Saved posts fetched successfully.",
-            posts: mySavedPosts
+            posts: dev.saved
         });
 
     } catch (error) {

@@ -19,7 +19,21 @@ export const searchOwnFromServer = async (searchQuery) => {
             headers: { "Content-Type": "application/json" },
             credentials: "include"
         })
-        if (!response.ok) throw new Error("Failed to create post");
+        if (!response.ok) throw new Error("Failed to search own post");
+        const data = await response.json();
+        return { ...data, success: response.ok };
+    } catch (error) {
+        console.error(error.message);
+    }
+}
+export const searchSavedFromServer = async (searchQuery) => {
+    try {
+        const response = await fetch(`http://localhost:3000/search/saved?q=${encodeURIComponent(searchQuery)}`, {
+            method: "GET",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include"
+        })
+        if (!response.ok) throw new Error("Failed to find saved post");
         const data = await response.json();
         return { ...data, success: response.ok };
     } catch (error) {

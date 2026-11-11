@@ -51,6 +51,7 @@ const devSchema = new mongoose.Schema({
     following: [{ type: mongoose.Schema.Types.ObjectId, ref: "Dev" }],
     saved: [{
         type: mongoose.Schema.Types.ObjectId,
+        ref: "Post"
     }],
 
 }, {
