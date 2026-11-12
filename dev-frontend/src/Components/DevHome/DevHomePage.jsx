@@ -23,10 +23,10 @@ export default function DevHomePage({ tab, setTab, setSearchParams, gotoProfile 
         fetchProfile();
     }, []);
     return <>
-        <DevHeader setSearchParams={setSearchParams} activeTab={tab} setTab={setTab} profile={profile}></DevHeader>
-        {tab == "feed" && < DevContainer gotoProfile={gotoProfile}></DevContainer>}
-        {tab == "my-posts" && <DevMyPosts></DevMyPosts>}
-        {tab == "saved" && <DevSaved></DevSaved>}
-        {tab == "explore" && <DevExplore gotoProfile={gotoProfile}></DevExplore>}
+        <DevHeader gotoProfile={gotoProfile} setSearchParams={setSearchParams} activeTab={tab} setTab={setTab} profile={profile}></DevHeader>
+        {tab === "feed" && <DevContainer gotoProfile={gotoProfile}></DevContainer>}
+        {tab === "my-posts" && <DevMyPosts gotoProfile={gotoProfile}></DevMyPosts>}
+        {tab === "saved" && <DevSaved gotoProfile={gotoProfile}></DevSaved>}
+        {tab === "explore" && <DevExplore gotoProfile={gotoProfile}></DevExplore>}
     </>
 }

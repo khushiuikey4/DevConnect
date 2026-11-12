@@ -44,22 +44,20 @@ exports.handleFollowToggle = async (req, res) => {
         }
 
         if (isFollowing) {
-            // Follow
-            await Dev.findByIdAndUpdate(currentUserId, {
-                $addToSet: { following: devId }
-            });
+            //follow
+            await Dev.findByIdAndUpdate(currentUserId, { $addToSet: { following: devId } });
+            await Dev.findByIdAndUpdate(devId, { $addToSet: { followers: currentUserId } });
         } else {
-
-            // Unfollow
-            await Dev.findByIdAndUpdate(currentUserId, {
-                $pull: { following: devId }
-            })
+            //unfollow
+            await Dev.findByIdAndUpdate(currentUserId, { $pull: { following: devId } });
+            await Dev.findByIdAndUpdate(devId, { $pull: { followers: currentUserId } });
         }
 
         return res.status(200).json({
-            message: isFollowing
+            message: !isFollowing
                 ? "Dev User unfollowed successfully."
                 : "Dev User followed successfully."
+            , success: true
         });
 
     } catch (error) {

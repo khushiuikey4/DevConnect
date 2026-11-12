@@ -85,7 +85,7 @@ function PostCard({ post, gotoProfile, onPostClick, onTagClick }) {
     if (onPostClick) {
       onPostClick(postId);
     } else {
-      navigate("/post-details", { state: { post } });
+      navigate(`/post/${postId}`, { state: { post } });
     }
   };
 
@@ -258,6 +258,18 @@ export default function DevExplore({
     cursor = null,
     isLoadMore = false,
   }) => {
+    // In Explore, users should only be visible when searched
+    if (type === "users" && !q.trim()) {
+      setUsers([]);
+      setActiveQuery(q);
+      setActiveType(type);
+      setActiveSort(sort);
+      setNextCursor(null);
+      setLoading(false);
+      setLoadingMore(false);
+      return;
+    }
+
     if (isLoadMore) {
       setLoadingMore(true);
     } else {
@@ -327,10 +339,33 @@ export default function DevExplore({
     });
   };
 
+  // Clear search query
+  const handleClear = () => {
+    setQuery("");
+    if (activeType === "users") {
+      setUsers([]);
+      setActiveQuery("");
+      setNextCursor(null);
+    } else {
+      fetchData({
+        q: "",
+        type: activeType,
+        sort: activeSort,
+        cursor: null,
+        isLoadMore: false,
+      });
+    }
+  };
+
   // Handle Top-level Filter Change (posts vs users)
   const handleTypeChange = (type) => {
     if (type === activeType) return;
     setActiveType(type);
+    if (type === "users" && !activeQuery.trim()) {
+      setUsers([]);
+      setNextCursor(null);
+      return;
+    }
     fetchData({
       q: activeQuery,
       type,
@@ -393,16 +428,7 @@ export default function DevExplore({
           {query && (
             <button
               type="button"
-              onClick={() => {
-                setQuery("");
-                fetchData({
-                  q: "",
-                  type: activeType,
-                  sort: activeSort,
-                  cursor: null,
-                  isLoadMore: false,
-                });
-              }}
+              onClick={handleClear}
               className="text-[#5a5c6b] hover:text-[#e8e9ee] font-mono text-sm px-1.5 cursor-pointer"
             >
               ✕
@@ -486,16 +512,7 @@ export default function DevExplore({
             </span>
             <button
               type="button"
-              onClick={() => {
-                setQuery("");
-                fetchData({
-                  q: "",
-                  type: activeType,
-                  sort: activeSort,
-                  cursor: null,
-                  isLoadMore: false,
-                });
-              }}
+              onClick={handleClear}
               className="text-[#8fd19e] hover:underline cursor-pointer ml-3"
             >
               Clear search
@@ -539,7 +556,16 @@ export default function DevExplore({
 
             {activeType === "users" && (
               <>
-                {users.length === 0 ? (
+                {!activeQuery.trim() ? (
+                  <div className="py-16 text-center bg-[#23252e]/30 rounded-lg border border-[#383a46]/40">
+                    <p className="font-mono text-[0.88rem] text-[#8fd19e] mb-2">
+                      // search developers
+                    </p>
+                    <p className="text-[0.82rem] text-[#8b8d9b]">
+                      Type a username or keyword in the search bar above to discover developers.
+                    </p>
+                  </div>
+                ) : users.length === 0 ? (
                   <div className="py-16 text-center bg-[#23252e]/30 rounded-lg border border-[#383a46]/40">
                     <p className="font-mono text-[0.88rem] text-[#8b8d9b] mb-1">
                       // no developers found

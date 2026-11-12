@@ -1,6 +1,8 @@
-import { useNavigate } from "react-router-dom";
-import { useState } from "react";
-import { followToggleOnServer } from "../../services/UserProfile"
+import { useNavigate, useParams } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { followToggleOnServer, getOtherUserProfileFromServer } from "../../services/UserProfile";
+import { getCurrentDevFromServer } from "../../services/currentDev";
+
 const SOCIAL_LABELS = {
     github: "github",
     twitter: "x / twitter",
@@ -8,31 +10,79 @@ const SOCIAL_LABELS = {
 };
 
 export default function DevProfile({
-    profile,
-    posts = [],
-    currentUser,
+    profile: initialProfile,
+    posts: initialPosts = [],
+    currentUser: initialCurrentUser,
     onPostClick
 }) {
-    console.log(currentUser)
-    const currentUserId = currentUser?._id;
-    if (!profile) {
-        return <p className="text-center text-[#8b8d9b]">Loading profile...</p>;
-    }
-    console.log(currentUserId)
-
-    const followers = profile.followers || [];
-    const following = profile.following || [];
     const navigate = useNavigate();
+    const { userId: routeUserId } = useParams();
 
-    const isOwnProfile =
-        String(profile._id) === String(currentUserId);
+    const [currentUser, setCurrentUser] = useState(initialCurrentUser || null);
+    const [profile, setProfile] = useState(
+        initialProfile && Object.keys(initialProfile).length > 0 ? initialProfile : null
+    );
+    const [posts, setPosts] = useState(initialPosts || []);
+    const [loading, setLoading] = useState(!profile && !!routeUserId);
 
-    const [isFollowing, setIsFollowing] = useState(followers.some(
-        id => String(id) === String(currentUserId)
-    ))
+    // Fetch current user if not provided
+    useEffect(() => {
+        if (!currentUser) {
+            async function fetchCurrent() {
+                try {
+                    const result = await getCurrentDevFromServer();
+                    if (result?.currentDev) {
+                        setCurrentUser(result.currentDev);
+                    }
+                } catch (e) {
+                    console.error("Failed to fetch current user in DevProfile:", e);
+                }
+            }
+            fetchCurrent();
+        }
+    }, [currentUser]);
+
+    // Fetch profile and posts if route param exists or if initialProfile was not loaded
+    useEffect(() => {
+        const targetId = routeUserId || initialProfile?._id || currentUser?._id;
+        if (!targetId) return;
+
+        // If we already have the profile matching targetId and it's not a different route param
+        if (profile?._id === targetId && posts.length > 0) return;
+
+        async function fetchTargetProfile() {
+            setLoading(true);
+            try {
+                const data = await getOtherUserProfileFromServer(targetId);
+                if (data?.devInformation) {
+                    setProfile(data.devInformation);
+                    setPosts(data.devPosts || []);
+                }
+            } catch (err) {
+                console.error("Failed to fetch profile in DevProfile:", err);
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        fetchTargetProfile();
+    }, [routeUserId, initialProfile?._id, currentUser?._id]);
+
+    const currentUserId = currentUser?._id;
+    const isOwnProfile = profile?._id && currentUserId && String(profile._id) === String(currentUserId);
+
+    const followers = profile?.followers || [];
+    const following = profile?.following || [];
+
+    const [isFollowing, setIsFollowing] = useState(
+        followers.some(id => String(id) === String(currentUserId))
+    );
+
+    useEffect(() => {
+        setIsFollowing(followers.some(id => String(id) === String(currentUserId)));
+    }, [profile?._id, currentUserId]);
 
     const tagCounts = {};
-
     posts.forEach((post) =>
         (post.tags || []).forEach((tag) => {
             tagCounts[tag] = (tagCounts[tag] || 0) + 1;
@@ -51,24 +101,57 @@ export default function DevProfile({
         { label: "followers", value: followers.length },
         { label: "following", value: following.length },
     ];
+
     const onEditProfile = () => {
         navigate('/MyProfileUpdate');
-    }
+    };
+
     const onFollow = async () => {
         try {
-            const response = await followToggleOnServer(currentUserId, profile._id, !isFollowing);
+            await followToggleOnServer(currentUserId, profile._id, !isFollowing);
             setIsFollowing(prev => !prev);
         } catch (error) {
             console.error(error);
         }
     };
 
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-[#1e1f26] text-[#8b8d9b] flex items-center justify-center font-mono text-sm">
+                // loading developer profile...
+            </div>
+        );
+    }
+
+    if (!profile) {
+        return (
+            <div className="min-h-screen bg-[#1e1f26] text-[#8b8d9b] flex flex-col items-center justify-center gap-4 font-mono text-sm">
+                <p>// profile not found</p>
+                <button
+                    onClick={() => navigate('/devHomePage')}
+                    className="px-4 py-2 bg-[#8fd19e] text-[#182019] rounded-md font-semibold cursor-pointer"
+                >
+                    Back to feed
+                </button>
+            </div>
+        );
+    }
+
     return (
         <div className="min-h-screen bg-[#1e1f26] text-[#e8e9ee]">
             <main className="max-w-[880px] mx-auto px-6 pt-9 pb-[72px] flex flex-col gap-4">
 
-                <div className="font-mono text-[0.82rem] text-[#8b8d9b]">
-                    // <span className="text-[#8fd19e]">public profile</span>
+                <div className="flex items-center justify-between font-mono text-[0.82rem] text-[#8b8d9b]">
+                    <div>
+                        // <span className="text-[#8fd19e]">{isOwnProfile ? "your profile" : "public profile"}</span>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => navigate(-1)}
+                        className="hover:text-[#8fd19e] transition-colors cursor-pointer"
+                    >
+                        ← back
+                    </button>
                 </div>
 
                 <section className="flex flex-wrap items-start gap-6 bg-[#23252e] border border-[#383a46] rounded-xl p-7">
@@ -120,13 +203,15 @@ export default function DevProfile({
                                 </a>
                             )}
 
-                            <span>
-                                Joined{" "}
-                                {new Date(profile.createdAt).toLocaleDateString("en-US", {
-                                    month: "long",
-                                    year: "numeric",
-                                })}
-                            </span>
+                            {profile.createdAt && (
+                                <span>
+                                    Joined{" "}
+                                    {new Date(profile.createdAt).toLocaleDateString("en-US", {
+                                        month: "long",
+                                        year: "numeric",
+                                    })}
+                                </span>
+                            )}
                         </div>
 
                         <div className="flex flex-wrap gap-2 font-mono text-[0.82rem]">
@@ -149,16 +234,16 @@ export default function DevProfile({
                     {isOwnProfile ? (
                         <button
                             type="button"
-                            onClick={() => onEditProfile?.()}
-                            className="min-h-[44px] px-7 rounded-md border border-[#383a46] text-[#c9cad3] font-mono text-[0.88rem] font-semibold hover:border-[#8b8d9b] transition-colors"
+                            onClick={onEditProfile}
+                            className="min-h-[44px] px-7 rounded-md border border-[#383a46] text-[#c9cad3] font-mono text-[0.88rem] font-semibold hover:border-[#8b8d9b] transition-colors cursor-pointer"
                         >
                             edit profile
                         </button>
                     ) : (
                         <button
                             type="button"
-                            onClick={() => onFollow?.()}
-                            className={`min-h-[44px] px-7 rounded-md border font-mono text-[0.88rem] font-semibold transition-opacity ${isFollowing
+                            onClick={onFollow}
+                            className={`min-h-[44px] px-7 rounded-md border font-mono text-[0.88rem] font-semibold transition-opacity cursor-pointer ${isFollowing
                                 ? "border-[#383a46] text-[#c9cad3] hover:border-[#8b8d9b]"
                                 : "border-[#8fd19e] bg-[#8fd19e] text-[#182019] hover:opacity-90"
                                 }`}
@@ -217,7 +302,14 @@ export default function DevProfile({
                     posts.map((post) => (
                         <article
                             key={post._id}
-                            className="flex flex-col gap-2.5 bg-[#23252e] border border-[#383a46] rounded-[10px] px-[22px] py-5"
+                            onClick={() => {
+                                if (onPostClick) {
+                                    onPostClick(post._id);
+                                } else {
+                                    navigate(`/post/${post._id}`, { state: { post } });
+                                }
+                            }}
+                            className="flex flex-col gap-2.5 bg-[#23252e] border border-[#383a46] rounded-[10px] px-[22px] py-5 hover:border-[#4a4d5c] transition-colors cursor-pointer"
                         >
                             <div className="font-mono text-[0.78rem] text-[#8b8d9b]">
                                 {new Date(post.createdAt).toLocaleDateString("en-US", {
@@ -227,18 +319,12 @@ export default function DevProfile({
                                 })}
                             </div>
 
-                            <h3 className="m-0 text-[1.1rem] font-semibold leading-[1.35]">
-                                <button
-                                    type="button"
-                                    onClick={() => onPostClick?.(post._id)}
-                                    className="text-left hover:text-[#8fd19e] transition-colors"
-                                >
-                                    {post.title}
-                                </button>
+                            <h3 className="m-0 text-[1.1rem] font-semibold leading-[1.35] text-[#e8e9ee] hover:text-[#8fd19e] transition-colors">
+                                {post.title}
                             </h3>
 
                             <p className="m-0 text-[0.9rem] leading-[1.6] text-[#a3a5b3]">
-                                {post.excerpt || post.content.slice(0, 160)}
+                                {post.excerpt || post.content?.slice(0, 160)}
                             </p>
 
                             <div className="flex flex-wrap items-center justify-between gap-2.5 mt-1">

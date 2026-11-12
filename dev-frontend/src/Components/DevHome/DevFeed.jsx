@@ -67,24 +67,29 @@ function Avatar({ src, name = "", id, large = false, gotoProfile }) {
   const [failed, setFailed] = useState(false);
   const size = large ? "w-12 h-12 text-base" : "w-[22px] h-[22px]";
 
+  const handleClick = (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (id && gotoProfile) {
+      gotoProfile(id);
+    }
+  };
+
   if (src && !failed) {
     return (
-      <img onClick={() => {
-        gotoProfile(id);
-      }}
+      <img
+        onClick={handleClick}
         src={avatarUrl(src)}
         alt=""
-        onError={() => setFailed(true)} // broken image -> fall back to the gradient circle
-        className={`${size} cursor-pointer rounded-full object-cover shrink-0`}
+        onError={() => setFailed(true)}
+        className={`${size} cursor-pointer rounded-full object-cover shrink-0 hover:opacity-80 transition-opacity`}
       />
     );
   }
   return (
-    <span onClick={() => {
-      gotoProfile(id);
-      className = "cursor-pointer"
-    }}
-      className={`cursor-pointer${size} rounded-full bg-gradient-to-br ${gradientFor(name)} flex items-center justify-center text-[#1e1f26] font-semibold shrink-0`}
+    <span
+      onClick={handleClick}
+      className={`cursor-pointer ${size} rounded-full bg-gradient-to-br ${gradientFor(name)} flex items-center justify-center text-[#1e1f26] font-semibold shrink-0 hover:opacity-80 transition-opacity`}
     >
       {large ? name[0]?.toUpperCase() ?? "?" : ""}
     </span>
@@ -98,36 +103,41 @@ function PostCard({ post, currentUser, onLike, onSave, onClick, gotoProfile }) {
   const likes = Array.isArray(post.likes) ? post.likes : [];
   const [likeCount, setLikeCount] = useState(likes.length);
   const savedBy = Array.isArray(post.savedBy) ? post.savedBy : [];
-  // const saved = !!currentUserId && savedBy.includes(currentUserId);
-  const saved = currentUser.saved?.includes(post._id) ?? false;
-  console.log("Current User : ", currentUser);
-  console.log("saved array : ", currentUser.saved);
-  console.log('saved : ', saved);
+  const saved = currentUser?.saved?.includes(post._id) ?? false;
   const [saveToggle, setSaveToggle] = useState(saved);
   const excerpt = post.excerpt || post.content?.slice(0, 160) || "";
-  const authorId = post.author._id;
+  const authorId = post.author?._id || post.author;
   const postId = post._id;
   const [liked, setLiked] = useState(
-    post.likes?.some(id => String(id) === String(currentUser._id)) ?? false
+    post.likes?.some(id => String(id) === String(currentUser?._id)) ?? false
   );
 
   return (
     <Link
-      to="/post-details"
+      to={`/post/${postId}`}
       state={{ post }}
+      className="block text-inherit no-underline"
     >
-      <div className="bg-[#23252e] border border-[#383a46] rounded-[10px] p-[22px_24px] mb-4" >
+      <div className="bg-[#23252e] border border-[#383a46] rounded-[10px] p-[22px_24px] mb-4 hover:border-[#4a4d5c] transition-colors cursor-pointer" >
         <div className="flex items-center gap-2.5 text-[0.8rem] text-[#5a5c6b] mb-3.5">
           <Avatar src={authorAvatar} name={authorName} id={authorId} gotoProfile={gotoProfile} />
-          <span className="cursor-pointer" onClick={() => {
-            gotoProfile(authorId);
-          }}>{authorName}</span>
+          <span
+            className="cursor-pointer hover:text-[#8fd19e] transition-colors font-medium text-[#e8e9ee]"
+            onClick={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              if (authorId && gotoProfile) {
+                gotoProfile(authorId);
+              }
+            }}
+          >
+            {authorName}
+          </span>
           <span>· {readTime(post.content)} · {timeAgo(post.createdAt)}</span>
         </div>
 
         <h3
-          onClick={() => onClick?.(post._id)}
-          className="text-[1.08rem] font-semibold mb-2 cursor-pointer hover:text-[#8fd19e] transition-colors"
+          className="text-[1.08rem] font-semibold mb-2 text-[#e8e9ee] hover:text-[#8fd19e] transition-colors"
         >
           {post.title}
         </h3>
@@ -154,7 +164,6 @@ function PostCard({ post, currentUser, onLike, onSave, onClick, gotoProfile }) {
           >
             <button
               onClick={() => {
-                // onLike?.(post._id)
                 const nextLiked = !liked;
                 setLiked(nextLiked);
                 addPostLikeToServer(postId, nextLiked);
@@ -164,25 +173,23 @@ function PostCard({ post, currentUser, onLike, onSave, onClick, gotoProfile }) {
                   setLikeCount(prev => prev - 1);
                 }
               }}
-              className={`font-mono text-[0.78rem] flex items-center gap-1.5 ${liked ? "text-[#e18a8a]" : "text-[#5a5c6b] hover:text-[#e8e9ee]"
+              className={`font-mono text-[0.78rem] flex items-center gap-1.5 cursor-pointer ${liked ? "text-[#e18a8a]" : "text-[#5a5c6b] hover:text-[#e8e9ee]"
                 }`}
             >
               {liked ? "♥" : "♡"} {likeCount}
             </button>
-            <button
-              onClick={() => onClick?.(post._id)}
-              className="font-mono text-[0.78rem] text-[#5a5c6b] hover:text-[#e8e9ee] flex items-center gap-1.5"
+            <span
+              className="font-mono text-[0.78rem] text-[#5a5c6b] hover:text-[#e8e9ee] flex items-center gap-1.5 cursor-pointer"
             >
               💬 {post.commentCount ?? 0}
-            </button>
+            </span>
             <button
               onClick={() => {
-                onSave?.(post._id)
-                setSaveToggle(prev => !prev)
+                onSave?.(post._id);
+                setSaveToggle(prev => !prev);
                 savePostToServer(post._id, !saveToggle);
-              }
-              }
-              className={`font-mono text-[0.78rem] ${saveToggle ? "text-[#e8a87c]" : "text-[#5a5c6b] hover:text-[#e8e9ee]"
+              }}
+              className={`font-mono text-[0.78rem] cursor-pointer ${saveToggle ? "text-[#e8a87c]" : "text-[#5a5c6b] hover:text-[#e8e9ee]"
                 }`}
             >
               {saveToggle ? "🔖 saved" : "🔖 save"}
@@ -194,14 +201,24 @@ function PostCard({ post, currentUser, onLike, onSave, onClick, gotoProfile }) {
   );
 }
 
-function UserCard({ user, onFollow, onClick }) {
+function UserCard({ user, onFollow, onClick, gotoProfile }) {
+  const userId = user._id || user.id;
+  const handleUserClick = (e) => {
+    e?.stopPropagation?.();
+    if (userId && gotoProfile) {
+      gotoProfile(userId);
+    } else if (onClick && userId) {
+      onClick(userId);
+    }
+  };
+
   return (
-    <div className="bg-[#23252e] border border-[#383a46] rounded-[10px] p-[18px_22px] mb-4 flex items-center gap-4">
-      <Avatar src={user.avatar} name={user.username} large />
+    <div className="bg-[#23252e] border border-[#383a46] rounded-[10px] p-[18px_22px] mb-4 flex items-center gap-4 hover:border-[#4a4d5c] transition-colors">
+      <Avatar src={user.avatar} name={user.username} id={userId} large gotoProfile={gotoProfile} />
 
       <div className="flex-1 min-w-0">
         <h3
-          onClick={() => onClick?.(user._id)}
+          onClick={handleUserClick}
           className="text-[1rem] font-semibold cursor-pointer hover:text-[#8fd19e] transition-colors truncate"
         >
           {user.username}
@@ -218,10 +235,10 @@ function UserCard({ user, onFollow, onClick }) {
       </div>
 
       <button
-        onClick={() => onFollow?.(user._id)}
-        className="font-mono text-[0.78rem] px-4 py-1.5 rounded-md border border-[#8fd19e] text-[#8fd19e] hover:bg-[#8fd19e] hover:text-[#182019] transition-colors shrink-0"
+        onClick={handleUserClick}
+        className="font-mono text-[0.78rem] px-3.5 py-1.5 rounded-md border border-[#8fd19e] text-[#8fd19e] hover:bg-[#8fd19e] hover:text-[#182019] transition-colors shrink-0 cursor-pointer"
       >
-        follow
+        view profile
       </button>
     </div>
   );
@@ -465,7 +482,7 @@ export default function DevFeed({
             />
           ))
           : users.map((user) => (
-            <UserCard key={user._id} user={user} onFollow={onFollow} onClick={onUserClick} />
+            <UserCard key={user._id} user={user} onFollow={onFollow} onClick={onUserClick} gotoProfile={gotoProfile} />
           ))}
 
         {onLoadMore && items.length > 0 && (

@@ -46,12 +46,22 @@ const ReadPost = ({
     onAddComment,
     onSave,
     onLikeComment,
+    gotoProfile,
 }) => {
     const navigate = useNavigate();
     const location = useLocation();
     const editTextareaRef = useRef(null);
 
     const [currentUser, setCurrentUser] = useState(null);
+
+    const handleNavigateToProfile = (devId) => {
+        if (!devId) return;
+        if (gotoProfile) {
+            gotoProfile(devId);
+        } else {
+            navigate(`/devProfile/${devId}`);
+        }
+    };
 
     useEffect(() => {
         const fetchCurrentUser = async () => {
@@ -71,22 +81,6 @@ const ReadPost = ({
     const postId = routePost?._id || id;
     const [freshPost, setFreshPost] = useState(null);
     const post = freshPost || routePost;
-    useEffect(() => {
-        if (!postId) return;
-        const fetchFreshPost = async () => {
-            try {
-                const response = await getPostFromServer(postId);
-                if (response?.error) {
-                    throw new Error(response.Error);
-                }
-                setFreshPost(response.post)
-            } catch (error) {
-                console.error("Unable to fetch latest post", error)
-            }
-        }
-        fetchFreshPost();
-    }, [routePost?._id])
-
     const [liked, setLiked] = useState(false);
     const [likeCount, setLikeCount] = useState(0);
     const [comments, setComments] = useState([]);
@@ -346,6 +340,7 @@ const ReadPost = ({
 
     const authorName =
         author.username || author.name || "Unknown user";
+    const postAuthorId = author._id || (typeof post?.author === "string" ? post.author : null);
 
     const avatar = author.avatar;
 
@@ -500,6 +495,7 @@ const ReadPost = ({
     // Recursively render comments and their replies
     const renderComment = (comment) => {
         const commentAuthor = getCommentAuthor(comment);
+        const commentAuthorId = comment.author?._id || comment.user?._id || (typeof comment.author === "string" ? comment.author : null);
         const commentAvatar = comment.author?.avatar;
 
         const commentAvatarUrl = commentAvatar
@@ -527,12 +523,16 @@ const ReadPost = ({
 
                     {commentAvatarUrl ? (
                         <img
+                            onClick={() => handleNavigateToProfile(commentAuthorId)}
                             src={commentAvatarUrl}
                             alt={commentAuthor}
-                            className="w-10 h-10 rounded-full object-cover shrink-0"
+                            className="w-10 h-10 rounded-full object-cover shrink-0 cursor-pointer hover:opacity-80 transition"
                         />
                     ) : (
-                        <div className="w-10 h-10 shrink-0 rounded-full bg-[#303b3a] flex items-center justify-center text-[#a8d9b3]">
+                        <div
+                            onClick={() => handleNavigateToProfile(commentAuthorId)}
+                            className="w-10 h-10 shrink-0 rounded-full bg-[#303b3a] flex items-center justify-center text-[#a8d9b3] cursor-pointer hover:opacity-80 transition"
+                        >
                             <UserRound size={18} />
                         </div>
                     )}
@@ -540,7 +540,10 @@ const ReadPost = ({
                     <div className="flex-1 min-w-0">
 
                         <div className="flex items-center gap-2 mb-1">
-                            <span className="text-gray-100 text-sm font-semibold">
+                            <span
+                                onClick={() => handleNavigateToProfile(commentAuthorId)}
+                                className="text-gray-100 text-sm font-semibold cursor-pointer hover:text-[#8bd19e] transition"
+                            >
                                 {commentAuthor}
                             </span>
                             <span className="text-gray-500 text-xs">
@@ -831,35 +834,47 @@ const ReadPost = ({
                         <div className="flex items-center justify-between gap-4 mb-8">
 
                             <div className="flex items-center gap-4 min-w-0">
+                                {(() => {
+                                    const postAuthorId = post?.author?._id || (typeof post?.author === "string" ? post?.author : null);
+                                    return (
+                                        <>
+                                            {avatarUrl ? (
+                                                <img
+                                                    onClick={() => handleNavigateToProfile(postAuthorId)}
+                                                    src={avatarUrl}
+                                                    alt={authorName}
+                                                    className="w-10 h-10 rounded-full object-cover cursor-pointer hover:opacity-80 transition"
+                                                />
+                                            ) : (
+                                                <UserRound
+                                                    onClick={() => handleNavigateToProfile(postAuthorId)}
+                                                    className="w-10 h-10 rounded-full p-2 bg-gray-700 cursor-pointer hover:opacity-80 transition"
+                                                />
+                                            )}
 
-                                {avatarUrl ? (
-                                    <img
-                                        src={avatarUrl}
-                                        alt={authorName}
-                                        className="w-10 h-10 rounded-full object-cover"
-                                    />
-                                ) : (
-                                    <UserRound className="w-10 h-10 rounded-full p-2 bg-gray-700" />
-                                )}
+                                            <div className="min-w-0">
+                                                <p
+                                                    onClick={() => handleNavigateToProfile(postAuthorId)}
+                                                    className="text-gray-100 font-semibold text-base truncate cursor-pointer hover:text-[#8fd19e] transition"
+                                                >
+                                                    {authorName}
+                                                </p>
 
-                                <div className="min-w-0">
-                                    <p className="text-gray-100 font-semibold text-base truncate">
-                                        {authorName}
-                                    </p>
+                                                <div className="flex flex-wrap items-center gap-3 mt-1.5 text-gray-500 text-xs">
+                                                    <span className="flex items-center gap-1.5">
+                                                        <CalendarDays size={13} />
+                                                        {formatDate(post.createdAt)}
+                                                    </span>
 
-                                    <div className="flex flex-wrap items-center gap-3 mt-1.5 text-gray-500 text-xs">
-                                        <span className="flex items-center gap-1.5">
-                                            <CalendarDays size={13} />
-                                            {formatDate(post.createdAt)}
-                                        </span>
-
-                                        <span className="flex items-center gap-1.5">
-                                            <Clock3 size={13} />
-                                            {Math.max(1, Math.ceil((post.content?.trim().split(/\s+/).length || 0) / 200))} min read
-                                        </span>
-                                    </div>
-                                </div>
-
+                                                    <span className="flex items-center gap-1.5">
+                                                        <Clock3 size={13} />
+                                                        {Math.max(1, Math.ceil((post.content?.trim().split(/\s+/).length || 0) / 200))} min read
+                                                    </span>
+                                                </div>
+                                            </div>   {/* closes min-w-0 */}
+                                        </>
+                                    );
+                                })()}
                             </div>
 
                             <button

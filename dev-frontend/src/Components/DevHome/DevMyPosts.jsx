@@ -10,14 +10,22 @@ const FILTERS = [
   { key: "draft", label: "drafts" },
 ];
 
-function PostRow({ post, onEdit, onDelete, onContinueWriting }) {
+function PostRow({ post, onEdit, onDelete, onContinueWriting, gotoProfile }) {
   const isDraft = post.status === "draft";
 
   const postId = post._id || post.id;
+  const authorId = post.author?._id || post.author;
   const authorName = post.author?.username || "Unknown author";
   const authorAvatar = post.author?.avatar;
   const [deleteBox, setDeleteBox] = useState(false);
   const navigate = useNavigate();
+
+  const handleAuthorClick = (e) => {
+    e.stopPropagation();
+    if (authorId && gotoProfile) {
+      gotoProfile(authorId);
+    }
+  };
 
   const postDate = post.createdAt
     ? new Date(post.createdAt).toLocaleDateString("en-US", {
@@ -45,25 +53,35 @@ function PostRow({ post, onEdit, onDelete, onContinueWriting }) {
     : null;
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-5 items-start bg-[#23252e] border border-[#383a46] rounded-[10px] p-[22px_24px] mb-3.5">
+    <div
+      onClick={() => navigate(`/post/${postId}`, { state: { post } })}
+      className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-5 items-start bg-[#23252e] border border-[#383a46] rounded-[10px] p-[22px_24px] mb-3.5 hover:border-[#4a4d5c] transition-colors cursor-pointer"
+    >
       <div>
         <div className="flex items-center gap-2.5 mb-3">
           {avatarUrl ? (
             <img
               src={avatarUrl}
               alt={authorName}
-              className="w-8 h-8 rounded-full object-cover border border-[#383a46]"
+              className="w-8 h-8 rounded-full object-cover border border-[#383a46] hover:opacity-80 transition cursor-pointer"
+              onClick={handleAuthorClick}
               onError={(event) => {
                 event.currentTarget.style.display = "none";
               }}
             />
           ) : (
-            <div className="w-8 h-8 rounded-full bg-[#383a46] flex items-center justify-center text-[#8fd19e] font-semibold">
+            <div
+              onClick={handleAuthorClick}
+              className="w-8 h-8 rounded-full bg-[#383a46] flex items-center justify-center text-[#8fd19e] font-semibold hover:opacity-80 transition cursor-pointer"
+            >
               {authorName.charAt(0).toUpperCase()}
             </div>
           )}
 
-          <span className="text-sm text-[#e8e9ee] font-medium">
+          <span
+            onClick={handleAuthorClick}
+            className="text-sm text-[#e8e9ee] font-medium hover:text-[#8fd19e] transition-colors cursor-pointer"
+          >
             {authorName}
           </span>
         </div>
@@ -84,7 +102,7 @@ function PostRow({ post, onEdit, onDelete, onContinueWriting }) {
           </span>
         </div>
 
-        <h3 className="text-[1.05rem] font-semibold mb-2 text-[#e8e9ee]">
+        <h3 className="text-[1.05rem] font-semibold mb-2 text-[#e8e9ee] hover:text-[#8fd19e] transition-colors">
           {post.title}
         </h3>
 
@@ -114,19 +132,26 @@ function PostRow({ post, onEdit, onDelete, onContinueWriting }) {
         </div>
       </div>
 
-      <div className="flex flex-row md:flex-col gap-2">
+      <div
+        className="flex flex-row md:flex-col gap-2"
+        onClick={(e) => e.stopPropagation()}
+      >
         <button
-          onClick={() =>
-            navigate(`/my-posts/edit/${post._id}`)
-          }
-          className="flex-1 md:flex-none font-mono text-[0.76rem] px-3.5 py-1.5 rounded-md border border-[#383a46] text-[#8b8d9b] hover:text-[#e8e9ee] hover:border-[#8b8d9b] transition-colors whitespace-nowrap"
+          onClick={(e) => {
+            e.stopPropagation();
+            navigate(`/my-posts/edit/${post._id}`);
+          }}
+          className="flex-1 md:flex-none font-mono text-[0.76rem] px-3.5 py-1.5 rounded-md border border-[#383a46] text-[#8b8d9b] hover:text-[#e8e9ee] hover:border-[#8b8d9b] transition-colors whitespace-nowrap cursor-pointer"
         >
           {isDraft ? "continue writing" : "edit"}
         </button>
 
         <button
-          onClick={() => setDeleteBox(true)}
-          className="flex-1 md:flex-none font-mono text-[0.76rem] px-3.5 py-1.5 rounded-md border border-[#383a46] text-[#8b8d9b] hover:text-[#e18a8a] hover:border-[#e18a8a] transition-colors"
+          onClick={(e) => {
+            e.stopPropagation();
+            setDeleteBox(true);
+          }}
+          className="flex-1 md:flex-none font-mono text-[0.76rem] px-3.5 py-1.5 rounded-md border border-[#383a46] text-[#8b8d9b] hover:text-[#e18a8a] hover:border-[#e18a8a] transition-colors cursor-pointer"
         >
           delete
         </button>
@@ -182,6 +207,7 @@ export default function DevMyPosts({
   userName = "you",
   onEdit,
   onContinueWriting,
+  gotoProfile,
 }) {
   const [serverPosts, setServerPosts] = useState([]);
   const [filter, setFilter] = useState("latest");
@@ -426,6 +452,7 @@ export default function DevMyPosts({
               onEdit={onEdit}
               onDelete={onDelete}
               onContinueWriting={onContinueWriting}
+              gotoProfile={gotoProfile}
             />
           ))
         )}

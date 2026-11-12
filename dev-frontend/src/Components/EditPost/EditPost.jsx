@@ -61,8 +61,8 @@ export default function EditPost({ tab, setTab }) {
     const handleEditPostToServer = async (status) => {
         const response = await editPostToServer({ postId, title, excerpt, content, tags, status });
         if (response.updatedPost) {
-            setTab('my-posts')
-            navigate('/devHomePage');
+            setTab('my-posts');
+            navigate('/devHomePage?tab=my-posts');
         } else {
             console.log('unable to edit/update post(msg from frontend)')
         }
@@ -89,12 +89,12 @@ export default function EditPost({ tab, setTab }) {
                     type="button"
                     // TODO: navigate back to /my-posts
                     onClick={() => {
-                        setTab('my-posts')
-                        navigate('/devHomePage')
+                        setTab('my-posts');
+                        navigate('/devHomePage?tab=my-posts');
                     }}
                     className="font-mono text-[0.8rem] px-4 py-2.5 rounded-md border border-[#383a46] text-[#8b8d9b] hover:text-[#e8e9ee] hover:border-[#8b8d9b] transition-colors"
                 >
-                    ← back
+                    â† back
                 </button>
             </header>
 
@@ -116,7 +116,7 @@ export default function EditPost({ tab, setTab }) {
                     value={excerpt}
                     maxLength={EXCERPT_MAX}
                     onChange={(e) => setExcerpt(e.target.value)}
-                    placeholder="One-line excerpt (optional – shown on the feed card)"
+                    placeholder="One-line excerpt (optional â€“ shown on the feed card)"
                     aria-label="Excerpt"
                     className="w-full bg-transparent outline-none italic text-[1.1rem] text-[#8b8d9b] placeholder:text-[#5a5c6b] mb-9"
                 />
@@ -148,12 +148,12 @@ export default function EditPost({ tab, setTab }) {
                                 <path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07l1.5-1.5" />
                             </svg>
                         </ToolbarButton>
-                        <ToolbarButton label="Quote">“</ToolbarButton>
-                        <ToolbarButton label="List">•</ToolbarButton>
+                        <ToolbarButton label="Quote">â€œ</ToolbarButton>
+                        <ToolbarButton label="List">â€¢</ToolbarButton>
                     </div>
 
                     <span className="font-mono text-[0.76rem] text-[#5a5c6b]">
-                        {wordCount} words · {readMinutes < 1 ? "<1" : readMinutes} min read
+                        {wordCount} words Â· {readMinutes < 1 ? "<1" : readMinutes} min read
                     </span>
                 </div>
 
@@ -162,7 +162,7 @@ export default function EditPost({ tab, setTab }) {
                     value={content}
                     onChange={(e) => setContent(e.target.value)}
                     placeholder={
-                        "Write in markdown...\n\n## What you’ll learn\nStart with a heading, then tell the story – what you built, what broke, what you’d do differently."
+                        "Write in markdown...\n\n## What youâ€™ll learn\nStart with a heading, then tell the story â€“ what you built, what broke, what youâ€™d do differently."
                     }
                     aria-label="Post content"
                     className="w-full min-h-[420px] bg-transparent outline-none resize-y font-mono text-[0.9rem] leading-[1.85] text-[#e8e9ee] placeholder:text-[#5a5c6b] pt-5 mb-10"
@@ -188,7 +188,7 @@ export default function EditPost({ tab, setTab }) {
                                         aria-label={`remove tag ${tag}`}
                                         className="text-[#8b8d9b] hover:text-[#e18a8a] transition-colors leading-none"
                                     >
-                                        ×
+                                        Ã—
                                     </button>
                                 </span>
                             ))}
@@ -255,8 +255,8 @@ export default function EditPost({ tab, setTab }) {
                             type="button"
                             // TODO: navigate back to /my-posts
                             onClick={() => {
-                                setTab('my-posts')
-                                navigate('/devHomePage')
+                                setTab('my-posts');
+                                navigate('/devHomePage?tab=my-posts');
                             }}
                             className="sm:flex-none font-mono text-[0.85rem] px-6 py-4 rounded-lg border border-[#383a46] text-[#8b8d9b] hover:text-[#e18a8a] hover:border-[#e18a8a] transition-colors"
                         >

@@ -1,5 +1,6 @@
 
 import { useState, useMemo, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { getSavedPostsFromServer } from "../../services/savedPosts";
 import { savePostToServer } from "../../services/postInteraction";
 import { searchSavedFromServer } from "../../services/search";
@@ -16,9 +17,12 @@ const AVATAR_GRADIENTS = [
   "from-[#7eb6e0] to-[#8fd19e]",
 ];
 
-function SavedRow({ post, onUnsave, onPostClick }) {
+function SavedRow({ post, onUnsave, onPostClick, gotoProfile }) {
+  const navigate = useNavigate();
   const postId = post._id || post.id;
   const [saveStatus, setSaveStatus] = useState(true);
+  const author = post.author;
+  const authorId = author?._id || (typeof author === "string" ? author : null);
   const authorName =
     typeof post.author === "object"
       ? post.author?.username || "Unknown author"
@@ -36,11 +40,29 @@ function SavedRow({ post, onUnsave, onPostClick }) {
   const savedAgo = post.savedAgo || "";
   const handleSaveStatus = async (id, status) => {
     setSaveStatus(prev => !prev);
-    const response = await savePostToServer(postId, !status);
-  }
+    await savePostToServer(postId, !status);
+  };
+
+  const handleAuthorClick = (e) => {
+    e.stopPropagation();
+    if (authorId && gotoProfile) {
+      gotoProfile(authorId);
+    }
+  };
+
+  const handleRowClick = () => {
+    if (onPostClick) {
+      onPostClick(postId);
+    } else {
+      navigate(`/post/${postId}`, { state: { post } });
+    }
+  };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-4.5 items-start bg-[#23252e] border border-[#383a46] rounded-[10px] p-5 mb-3">
+    <div
+      onClick={handleRowClick}
+      className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-4.5 items-start bg-[#23252e] border border-[#383a46] rounded-[10px] p-5 mb-3 hover:border-[#4a4d5c] transition-colors cursor-pointer"
+    >
       <div>
         <div className="flex items-center gap-2.5 text-[0.8rem] text-[#5a5c6b] mb-2.5">
           {avatarUrl ? (
@@ -51,26 +73,32 @@ function SavedRow({ post, onUnsave, onPostClick }) {
                   : `http://localhost:3000/${avatarUrl.replace(/^\/+/, "")}`
               }
               alt={authorName}
-              className="w-5 h-5 rounded-full object-cover"
+              className="w-5 h-5 rounded-full object-cover hover:opacity-80 transition cursor-pointer"
+              onClick={handleAuthorClick}
               onError={(e) => {
                 e.currentTarget.style.display = "none";
               }}
             />
           ) : (
             <span
+              onClick={handleAuthorClick}
               className={`w-5 h-5 rounded-full bg-gradient-to-br ${AVATAR_GRADIENTS[
                 (authorName.length || 0) % AVATAR_GRADIENTS.length
               ]
-                }`}
+                } hover:opacity-80 transition cursor-pointer`}
             />
           )}
 
-          <span>{authorName}</span>
-        </div >
+          <span
+            onClick={handleAuthorClick}
+            className="hover:text-[#8fd19e] transition-colors cursor-pointer text-[#e8e9ee]"
+          >
+            {authorName}
+          </span>
+        </div>
 
         <h3
-          onClick={() => onPostClick?.(postId)}
-          className="text-[1.02rem] font-semibold mb-2 cursor-pointer hover:text-[#8fd19e] transition-colors"
+          className="text-[1.02rem] font-semibold mb-2 hover:text-[#8fd19e] transition-colors text-[#e8e9ee]"
         >
           {post.title}
         </h3>
@@ -95,21 +123,24 @@ function SavedRow({ post, onUnsave, onPostClick }) {
             {savedAgo}
           </span>
         </div>
-      </div >
+      </div>
 
-      <div>
+      <div onClick={(e) => e.stopPropagation()}>
         <button
-          onClick={() => handleSaveStatus(postId, saveStatus)}
-          className="font-mono text-[0.76rem] px-3.5 py-1.5 rounded-md border border-[#383a46] text-[#e8a87c] bg-[#e8a87c14] hover:border-[#e8a87c] transition-colors whitespace-nowrap"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleSaveStatus(postId, saveStatus);
+          }}
+          className="font-mono text-[0.76rem] px-3.5 py-1.5 rounded-md border border-[#383a46] text-[#e8a87c] bg-[#e8a87c14] hover:border-[#e8a87c] transition-colors whitespace-nowrap cursor-pointer"
         >
           🔖 {saveStatus ? "Unsave" : "Save"}
         </button>
       </div>
-    </div >
+    </div>
   );
 }
 
-export default function DevSaved({ onUnsave, onPostClick }) {
+export default function DevSaved({ onUnsave, onPostClick, gotoProfile }) {
   const [posts, setPosts] = useState([]);
   const [activeTag, setActiveTag] = useState("all");
   const [loading, setLoading] = useState(true);
@@ -272,6 +303,7 @@ export default function DevSaved({ onUnsave, onPostClick }) {
                   post={post}
                   onUnsave={onUnsave}
                   onPostClick={onPostClick}
+                  gotoProfile={gotoProfile}
                 />
               ))
             )}
