@@ -76,7 +76,7 @@ const postSchema = new mongoose.Schema({
     timestamps: true
 });
 
-// Text search index using indexing
+// Text search index using 
 postSchema.index(
     { title: "text", tags: "text", excerpt: "text", content: "text" },
     { weights: { title: 5, tags: 4, excerpt: 3, content: 1 } }
